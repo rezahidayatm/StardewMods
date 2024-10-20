@@ -77,7 +77,7 @@ namespace Pathoschild.Stardew.LookupAnything.Components
             }
         }
 
-        /// <summary>Release all resources.</summary>
+        /// <inheritdoc />
         public void Dispose()
         {
             this.OnChanged = null;

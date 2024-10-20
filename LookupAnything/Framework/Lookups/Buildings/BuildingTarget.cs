@@ -19,15 +19,15 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Buildings
         /// <summary>Spritesheet areas to treat as part of the sprite even if they're transparent, indexed by <see cref="Building.buildingType"/> value.</summary>
         private static readonly IDictionary<string, Rectangle[]> SpriteCollisionOverrides = new Dictionary<string, Rectangle[]>
         {
-            ["Barn"] = new[] { new Rectangle(48, 90, 32, 22) }, // animal door
-            ["Big Barn"] = new[] { new Rectangle(64, 90, 32, 22) }, // animal door
-            ["Deluxe Barn"] = new[] { new Rectangle(64, 90, 32, 22) }, // animal door
+            ["Barn"] = [new Rectangle(48, 90, 32, 22)], // animal door
+            ["Big Barn"] = [new Rectangle(64, 90, 32, 22)], // animal door
+            ["Deluxe Barn"] = [new Rectangle(64, 90, 32, 22)], // animal door
 
-            ["Coop"] = new[] { new Rectangle(33, 97, 14, 15) },
-            ["Big Coop"] = new[] { new Rectangle(33, 97, 14, 15) },
-            ["Deluxe Coop"] = new[] { new Rectangle(33, 97, 14, 15) },
+            ["Coop"] = [new Rectangle(33, 97, 14, 15)],
+            ["Big Coop"] = [new Rectangle(33, 97, 14, 15)],
+            ["Deluxe Coop"] = [new Rectangle(33, 97, 14, 15)],
 
-            ["Fish Pond"] = new[] { new Rectangle(12, 12, 56, 56) }
+            ["Fish Pond"] = [new Rectangle(12, 12, 56, 56)]
         };
 
 
@@ -44,13 +44,13 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Buildings
             this.TileArea = new Rectangle(value.tileX.Value, value.tileY.Value, value.tilesWide.Value, value.tilesHigh.Value);
         }
 
-        /// <summary>Get the sprite's source rectangle within its texture.</summary>
+        /// <inheritdoc />
         public override Rectangle GetSpritesheetArea()
         {
-            return this.Value.getSourceRectForMenu();
+            return this.Value.getSourceRectForMenu() ?? this.Value.getSourceRect();
         }
 
-        /// <summary>Get a rectangle which roughly bounds the visible sprite relative the viewport.</summary>
+        /// <inheritdoc />
         public override Rectangle GetWorldArea()
         {
             // get source rectangle adjusted for zoom
@@ -74,10 +74,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Buildings
             );
         }
 
-        /// <summary>Get whether the visible sprite intersects the specified coordinate. This can be an expensive test.</summary>
-        /// <param name="tile">The tile to search.</param>
-        /// <param name="position">The viewport-relative coordinates to search.</param>
-        /// <param name="spriteArea">The approximate sprite area calculated by <see cref="GetWorldArea"/>.</param>
+        /// <inheritdoc />
         public override bool SpriteIntersectsPixel(Vector2 tile, Vector2 position, Rectangle spriteArea)
         {
             Rectangle sourceRect = this.GetSpritesheetArea();

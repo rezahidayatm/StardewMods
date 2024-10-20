@@ -20,7 +20,7 @@ to change the game's data, images, and maps without replacing game files.
 That's it! Content packs unzipped into `Mods` will be loaded and applied automatically.
 
 ### Compatibility
-Content Patcher is compatible with Stardew Valley 1.5.6+ on Linux/Mac/Windows, both single-player and
+Content Patcher is compatible with Stardew Valley 1.6+ on Linux/macOS/Windows, both single-player and
 multiplayer.
 
 ### Configure content packs
@@ -41,13 +41,12 @@ patch type | effect
 ---------- | ------
 visual     | Only visible to players that have it installed.
 maps       | Only visible to players that have it installed. Players without the custom map will see the normal map and will be subject to the normal bounds (e.g. they may see other players walk through walls, but they won't be able to follow).
-data       | Only directly affects players that have it installed, but can indirectly affect other players. For example, if a content pack changes `Data/ObjectInformation` and you create a new object, other player will see that object's custom values even if their `Data/ObjectInformation` doesn't have those changes.
+data       | Only directly affects players that have it installed, but can indirectly affect other players. For example, if a content pack changes `Data/Objects` and you create a new object, other player will see that object's custom values even if their `Data/Objects` doesn't have those changes.
 
 ## For mod authors
 * To create content packs, see the [author guide](author-guide.md) and its [tokens subpage](author-guide/tokens.md).
 * To add custom Content Patcher tokens from a SMAPI mod, see the [extensibility API](extensibility.md).
-* To use Content Patcher conditions in your own SMAPI mod, see the [conditions API](conditions-api.md).
-
+* To use Content Patcher conditions and token strings in your own SMAPI mod, see the [conditions API](conditions-api.md) and [token string API](token-strings-api.md).
 
 ## Configure
 Content Patcher creates a `config.json` file in its mod folder the first time you run it. You can
@@ -66,32 +65,6 @@ These are the available settings:
   <td>
 
 Default `false`. Whether to enable [debug features meant for content pack creators](author-guide/troubleshooting.md#debug-mode).
-
-  </td>
-</tr>
-
-<tr>
-  <td><code>GroupEditsByMod</code></td>
-  <td>
-
-Default `true`. Whether to apply changes from each content pack in a separate operation. This has
-two main benefits:
-
-* SMAPI logs will show the content pack name to simplify troubleshooting. For example:
-  ```
-  when true:
-      Content Patcher edited Characters/Abigail (for the 'Abigail Wears a Bow' content pack).
-      Content Patcher edited Characters/Abigail (for the 'Fancy Abigail' content pack).
-
-  when false:
-      Content Patcher edited Characters/Abigail.
-  ```
-* If applying changes from one content pack fails due to an error, changes from other content packs
-  will still be applied.
-
-If you have a large number of content packs and are noticing lag spikes in-game, you can try
-disabling this to improve performance. If you do, make sure to re-enable it before sharing your
-SMAPI log when asking for help.
 
   </td>
 </tr>

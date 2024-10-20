@@ -28,12 +28,7 @@ namespace ContentPatcher.Framework.Validators
         /*********
         ** Public methods
         *********/
-        /// <summary>Validate a content pack.</summary>
-        /// <param name="assetName">The asset name being loaded.</param>
-        /// <param name="data">The loaded asset data to validate.</param>
-        /// <param name="patch">The patch which loaded the asset.</param>
-        /// <param name="error">An error message which indicates why validation failed.</param>
-        /// <returns>Returns whether validation succeeded.</returns>
+        /// <inheritdoc />
         public override bool TryValidate<T>(IAssetName assetName, T data, IPatch patch, [NotNullWhen(false)] out string? error)
         {
             // detect vanilla tilesheets removed in SDV 1.3.36

@@ -22,12 +22,14 @@ namespace Pathoschild.Stardew.FastAnimations
         /// <summary>The animation handlers which skip or accelerate specific animations.</summary>
         private IAnimationHandler[] Handlers = null!; // set in Entry
 
+        /// <summary>The <see cref="Handlers"/> filtered to those which need to be updated when the object list changes.</summary>
+        private IAnimationHandlerWithObjectList[] HandlersWithObjectList = null!; // set in Entry
+
 
         /*********
         ** Public methods
         *********/
-        /// <summary>The mod entry point, called after the mod is first loaded.</summary>
-        /// <param name="helper">Provides methods for interacting with the mod directory, such as read/writing a config file or custom JSON files.</param>
+        /// <inheritdoc />
         public override void Entry(IModHelper helper)
         {
             I18n.Init(helper.Translation);
@@ -40,6 +42,7 @@ namespace Pathoschild.Stardew.FastAnimations
             helper.Events.GameLoop.SaveLoaded += this.OnSaveLoaded;
             helper.Events.GameLoop.UpdateTicked += this.OnUpdateTicked;
             helper.Events.Player.Warped += this.OnWarped;
+            helper.Events.World.ObjectListChanged += this.OnObjectListChanged;
         }
 
 
@@ -49,9 +52,7 @@ namespace Pathoschild.Stardew.FastAnimations
         /****
         ** Events
         ****/
-        /// <inheritdoc cref="IGameLoopEvents.GameLaunched"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IGameLoopEvents.GameLaunched" />
         private void OnGameLaunched(object? sender, GameLaunchedEventArgs e)
         {
             // add Generic Mod Config Menu integration
@@ -74,9 +75,7 @@ namespace Pathoschild.Stardew.FastAnimations
             ).Register();
         }
 
-        /// <inheritdoc cref="IGameLoopEvents.SaveLoaded"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IGameLoopEvents.SaveLoaded" />
         private void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
         {
             // initialize handlers
@@ -84,9 +83,7 @@ namespace Pathoschild.Stardew.FastAnimations
                 handler.OnNewLocation(Game1.currentLocation);
         }
 
-        /// <inheritdoc cref="IPlayerEvents.Warped"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IPlayerEvents.Warped" />
         private void OnWarped(object? sender, WarpedEventArgs e)
         {
             if (!Context.IsWorldReady || Game1.eventUp || !this.Handlers.Any() || !e.IsLocalPlayer)
@@ -96,22 +93,27 @@ namespace Pathoschild.Stardew.FastAnimations
                 handler.OnNewLocation(e.NewLocation);
         }
 
-        /// <inheritdoc cref="IGameLoopEvents.UpdateTicked"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IWorldEvents.ObjectListChanged" />
+        private void OnObjectListChanged(object? sender, ObjectListChangedEventArgs e)
+        {
+            if (e.IsCurrentLocation)
+            {
+                foreach (IAnimationHandlerWithObjectList handler in this.HandlersWithObjectList)
+                    handler.OnObjectListChanged(e);
+            }
+        }
+
+        /// <inheritdoc cref="IGameLoopEvents.UpdateTicked" />
         private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
         {
-            if (Game1.eventUp || !this.Handlers.Any())
+            if (!this.Handlers.Any())
                 return;
 
-            int playerAnimationID = this.Helper.Reflection.GetField<int>(Game1.player.FarmerSprite, "currentSingleAnimation").GetValue();
+            int playerAnimationId = Game1.player.FarmerSprite.currentSingleAnimation;
             foreach (IAnimationHandler handler in this.Handlers)
             {
-                if (handler.IsEnabled(playerAnimationID))
-                {
-                    handler.Update(playerAnimationID);
+                if (handler.TryApply(playerAnimationId))
                     break;
-                }
             }
         }
 
@@ -123,6 +125,14 @@ namespace Pathoschild.Stardew.FastAnimations
         private void UpdateConfig()
         {
             this.Handlers = this.GetHandlers(this.Config).ToArray();
+            this.HandlersWithObjectList = this.Handlers.OfType<IAnimationHandlerWithObjectList>().ToArray();
+
+            GameLocation location = Game1.currentLocation;
+            if (location != null)
+            {
+                foreach (IAnimationHandler handler in this.Handlers)
+                    handler.OnNewLocation(location);
+            }
         }
 
         /// <summary>Get the enabled animation handlers.</summary>
@@ -135,18 +145,24 @@ namespace Pathoschild.Stardew.FastAnimations
                 yield return new FishingHandler(config.FishingSpeed);
             if (config.HarvestSpeed > 1)
                 yield return new HarvestHandler(config.HarvestSpeed);
+            if (config.HoldUpItemSpeed > 1)
+                yield return new HoldUpItemHandler(config.HoldUpItemSpeed);
             if (config.HorseFluteSpeed > 1)
                 yield return new HorseFluteHandler(config.HorseFluteSpeed);
             if (config.MilkSpeed > 1)
                 yield return new MilkingHandler(config.MilkSpeed);
             if (config.MountOrDismountSpeed > 1)
                 yield return new MountHorseHandler(config.MountOrDismountSpeed);
+            if (config.ReadBookSpeed > 1)
+                yield return new ReadBookHandler(config.ReadBookSpeed);
             if (config.ShearSpeed > 1)
                 yield return new ShearingHandler(config.ShearSpeed);
-            if (config.UseSlingshotSpeed > 1)
-                yield return new SlingshotHandler(config.UseSlingshotSpeed);
             if (config.ToolSwingSpeed > 1)
                 yield return new ToolSwingHandler(config.ToolSwingSpeed);
+            if (config.UseSlingshotSpeed > 1)
+                yield return new SlingshotHandler(config.UseSlingshotSpeed);
+            if (config.UseTotemSpeed > 1)
+                yield return new UseTotemHandler(config.UseTotemSpeed);
             if (config.WeaponSwingSpeed > 1)
                 yield return new WeaponSwingHandler(config.WeaponSwingSpeed);
 
@@ -154,17 +170,39 @@ namespace Pathoschild.Stardew.FastAnimations
             if (config.BreakGeodeSpeed > 1)
                 yield return new BreakingGeodeHandler(config.BreakGeodeSpeed);
             if (config.CasinoSlotsSpeed > 1)
-                yield return new CasinoSlotsHandler(config.CasinoSlotsSpeed, this.Helper.Reflection);
+                yield return new CasinoSlotsHandler(config.CasinoSlotsSpeed);
+            if (config.Experimental_EventSpeed > 1)
+                yield return new EventHandler(config.Experimental_EventSpeed);
+            if (config.FadeSpeed > 1)
+                yield return new FadeHandler(config.FadeSpeed);
+            if (config.FishingTreasureSpeed > 1)
+                yield return new FishingTreasureHandler(config.FishingTreasureSpeed);
+            if (config.ForgeSpeed > 1)
+                yield return new ForgeHandler(config.ForgeSpeed);
+            if (config.OpenChestSpeed > 1)
+                yield return new OpenChestHandler(config.OpenChestSpeed);
+            if (config.OpenDialogueBoxSpeed > 1)
+                yield return new OpenDialogueBoxHandler(config.OpenDialogueBoxSpeed);
             if (config.PamBusSpeed > 1)
                 yield return new PamBusHandler(config.PamBusSpeed);
+            if (config.ParrotExpressSpeed > 1)
+                yield return new ParrotExpressHandler(config.ParrotExpressSpeed);
+            if (config.PrizeTicketMachineSpeed > 1)
+                yield return new PrizeTicketMachineHandler(config.PrizeTicketMachineSpeed, this.Helper.Reflection);
+            if (config.TailorSpeed > 1)
+                yield return new TailoringHandler(config.TailorSpeed);
             if (config.TreeFallSpeed > 1)
-                yield return new TreeFallingHandler(config.TreeFallSpeed, this.Helper.Reflection);
+                yield return new TreeFallingHandler(config.TreeFallSpeed);
+            if (config.WheelSpinSpeed > 1)
+                yield return new WheelSpinHandler(config.WheelSpinSpeed);
 
             // UI animations
+            if (config.DialogueTypeSpeed > 1)
+                yield return new DialogueTypingHandler(config.DialogueTypeSpeed);
             if (config.TitleMenuTransitionSpeed > 1)
-                yield return new TitleMenuHandler(config.TitleMenuTransitionSpeed, this.Helper.Reflection);
+                yield return new TitleMenuHandler(config.TitleMenuTransitionSpeed);
             if (config.LoadGameBlinkSpeed > 1)
-                yield return new LoadGameMenuHandler(config.LoadGameBlinkSpeed, this.Helper.Reflection);
+                yield return new LoadGameMenuHandler(config.LoadGameBlinkSpeed);
         }
     }
 }

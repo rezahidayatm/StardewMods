@@ -16,7 +16,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Tiles
         public TileTarget(GameHelper gameHelper, Vector2 position, Func<ISubject> getSubject)
             : base(gameHelper, SubjectType.Tile, position, position, getSubject) { }
 
-        /// <summary>Get the sprite's source rectangle within its texture.</summary>
+        /// <inheritdoc />
         public override Rectangle GetSpritesheetArea()
         {
             return Rectangle.Empty;

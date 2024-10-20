@@ -30,38 +30,41 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
         /// <summary>Handles access to the supported mod integrations.</summary>
         private readonly ModIntegrations Mods;
 
+        /// <summary>Whether the Ultimate Fertilizer mod is installed.</summary>
+        private readonly bool HasUltimateFertilizer;
+
 
         /*********
         ** Public methods
         *********/
         /// <summary>Construct an instance.</summary>
         /// <param name="config">The data layer settings.</param>
+        /// <param name="colors">The colors to render.</param>
         /// <param name="mods">Handles access to the supported mod integrations.</param>
-        public CropFertilizerLayer(LayerConfig config, ModIntegrations mods)
+        public CropFertilizerLayer(LayerConfig config, ColorScheme colors, ModIntegrations mods)
             : base(I18n.CropFertilizer_Name(), config)
         {
+            const string layerId = "FertilizedCrops";
+
             this.Legend =
                 new[]
                 {
-                    this.Fertilizer = new LegendEntry(I18n.Keys.CropFertilizer_Fertilizer, Color.Green),
-                    this.RetainingSoil = new LegendEntry(I18n.Keys.CropFertilizer_RetainingSoil, Color.Blue),
-                    this.SpeedGro = new LegendEntry(I18n.Keys.CropFertilizer_SpeedGro, Color.Magenta),
+                    this.Fertilizer = new LegendEntry(I18n.Keys.CropFertilizer_Fertilizer, colors.Get(layerId, "Fertilizer", Color.Green)),
+                    this.RetainingSoil = new LegendEntry(I18n.Keys.CropFertilizer_RetainingSoil, colors.Get(layerId, "RetainingSoil", Color.Blue)),
+                    this.SpeedGro = new LegendEntry(I18n.Keys.CropFertilizer_SpeedGro, colors.Get(layerId, "SpeedGro", Color.Magenta)),
                     this.Multiple = mods.MultiFertilizer.IsLoaded
-                        ? new LegendEntry(I18n.Keys.CropFertilizer_Multiple, Color.Red)
+                        ? new LegendEntry(I18n.Keys.CropFertilizer_Multiple, colors.Get(layerId, "Multiple", Color.Red))
                         : null
                 }
                 .WhereNotNull()
                 .ToArray();
 
             this.Mods = mods;
+            this.HasUltimateFertilizer = mods.IsModInstalled("fox_white25.ultimate_fertilizer");
         }
 
-        /// <summary>Get the updated data layer tiles.</summary>
-        /// <param name="location">The current location.</param>
-        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
-        /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
-        /// <param name="cursorTile">The tile position under the cursor.</param>
-        public override TileGroup[] Update(GameLocation location, in Rectangle visibleArea, in Vector2[] visibleTiles, in Vector2 cursorTile)
+        /// <inheritdoc />
+        public override TileGroup[] Update(ref readonly GameLocation location, ref readonly Rectangle visibleArea, ref readonly IReadOnlySet<Vector2> visibleTiles, ref readonly Vector2 cursorTile)
         {
             FertilizedTile[] fertilizedTiles = this.GetFertilizedTiles(location, visibleTiles).ToArray();
 
@@ -104,7 +107,7 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
         /// <summary>Get fertilized tiles.</summary>
         /// <param name="location">The current location.</param>
         /// <param name="visibleTiles">The tiles currently visible on the screen.</param>
-        private IEnumerable<FertilizedTile> GetFertilizedTiles(GameLocation location, IEnumerable<Vector2> visibleTiles)
+        private IEnumerable<FertilizedTile> GetFertilizedTiles(GameLocation location, IReadOnlySet<Vector2> visibleTiles)
         {
             return (
                 from tilePos in visibleTiles
@@ -124,13 +127,15 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
             HoeDirt? dirt = this.GetDirt(location, tile);
 
             // get applied fertilizer item IDs
-            HashSet<int>? applied = null;
+            HashSet<string>? applied = null;
             if (dirt is not null && !this.IsDeadCrop(dirt))
             {
                 if (this.Mods.MultiFertilizer.IsLoaded)
-                    applied = new HashSet<int>(this.Mods.MultiFertilizer.GetAppliedFertilizers(dirt));
-                else if (dirt.fertilizer.Value > 0)
-                    applied = new HashSet<int> { dirt.fertilizer.Value };
+                    applied = [.. this.Mods.MultiFertilizer.GetAppliedFertilizers(dirt)];
+                else if (this.HasUltimateFertilizer)
+                    applied = [.. dirt.fertilizer.Value.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)]; // Ultimate Fertilizer allows multiple fertilizers
+                else if (CommonHelper.IsItemId(dirt.fertilizer.Value, allowZero: false))
+                    applied = [dirt.fertilizer.Value];
             }
 
             // get fertilizer info
@@ -138,9 +143,27 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
                 return null;
             return new FertilizedTile(
                 tile: tile,
-                hasFertilizer: applied.Contains(HoeDirt.fertilizerLowQuality) || applied.Contains(HoeDirt.fertilizerHighQuality) || applied.Contains(HoeDirt.fertilizerDeluxeQuality),
-                hasRetainingSoil: applied.Contains(HoeDirt.waterRetentionSoil) || applied.Contains(HoeDirt.waterRetentionSoilQuality) || applied.Contains(HoeDirt.waterRetentionSoilDeluxe),
-                hasSpeedGro: applied.Contains(HoeDirt.speedGro) || applied.Contains(HoeDirt.superSpeedGro) || applied.Contains(HoeDirt.hyperSpeedGro)
+                hasFertilizer:
+                    applied.Contains(HoeDirt.fertilizerLowQualityID)
+                    || applied.Contains(HoeDirt.fertilizerLowQualityQID)
+                    || applied.Contains(HoeDirt.fertilizerHighQualityID)
+                    || applied.Contains(HoeDirt.fertilizerHighQualityQID)
+                    || applied.Contains(HoeDirt.fertilizerDeluxeQualityID)
+                    || applied.Contains(HoeDirt.fertilizerDeluxeQualityQID),
+                hasRetainingSoil:
+                    applied.Contains(HoeDirt.waterRetentionSoilDeluxeID)
+                    || applied.Contains(HoeDirt.waterRetentionSoilDeluxeQID)
+                    || applied.Contains(HoeDirt.waterRetentionSoilQualityID)
+                    || applied.Contains(HoeDirt.waterRetentionSoilQualityQID)
+                    || applied.Contains(HoeDirt.waterRetentionSoilDeluxeID)
+                    || applied.Contains(HoeDirt.waterRetentionSoilDeluxeQID),
+                hasSpeedGro:
+                    applied.Contains(HoeDirt.speedGroID)
+                    || applied.Contains(HoeDirt.speedGroQID)
+                    || applied.Contains(HoeDirt.superSpeedGroID)
+                    || applied.Contains(HoeDirt.superSpeedGroQID)
+                    || applied.Contains(HoeDirt.hyperSpeedGroID)
+                    || applied.Contains(HoeDirt.hyperSpeedGroQID)
             );
         }
 

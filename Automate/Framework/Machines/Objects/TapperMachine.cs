@@ -30,15 +30,13 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
             this.Tree = tree;
         }
 
-        /// <summary>Get the output item.</summary>
+        /// <inheritdoc />
         public override ITrackedStack? GetOutput()
         {
             return this.GetTracked(this.Machine.heldObject.Value, onEmpty: this.Reset);
         }
 
-        /// <summary>Provide input to the machine.</summary>
-        /// <param name="input">The available items.</param>
-        /// <returns>Returns whether the machine started processing an item.</returns>
+        /// <inheritdoc />
         public override bool SetInput(IStorage input)
         {
             return false; // no input
@@ -54,7 +52,7 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
         {
             this.Machine.heldObject.Value = null;
             this.Machine.readyForHarvest.Value = false;
-            this.Tree.UpdateTapperProduct(tapper_instance: this.Machine, previous_object: item as SObject);
+            this.Tree.UpdateTapperProduct(tapper: this.Machine, previousOutput: item as SObject);
         }
     }
 }

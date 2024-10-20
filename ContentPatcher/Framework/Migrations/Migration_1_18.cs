@@ -19,7 +19,7 @@ namespace ContentPatcher.Framework.Migrations
             : base(new SemanticVersion(1, 18, 0))
         {
             this.AddedTokens = new InvariantSet(
-                ConditionType.I18n.ToString()
+                nameof(ConditionType.I18n)
             );
         }
 

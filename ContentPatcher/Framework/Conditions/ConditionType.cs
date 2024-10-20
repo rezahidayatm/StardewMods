@@ -59,6 +59,9 @@ namespace ContentPatcher.Framework.Conditions
         /// <summary>An event ID the player saw.</summary>
         HasSeenEvent,
 
+        /// <summary>A location internal name which the player has previously visited.</summary>
+        HasVisitedLocation,
+
         /// <summary>The player's daily luck.</summary>
         DailyLuck,
 
@@ -127,6 +130,9 @@ namespace ContentPatcher.Framework.Conditions
 
         /// <summary>The upgrade level for the main farmhouse.</summary>
         FarmhouseUpgrade,
+
+        /// <summary>The farm type's map asset path relative to the game's <c>Content/Maps</c> folder.</summary>
+        FarmMapAsset,
 
         /// <summary>The current farm name.</summary>
         FarmName,
@@ -206,6 +212,9 @@ namespace ContentPatcher.Framework.Conditions
 
         /// <summary>The <see cref="StardewValley.LocalizedContentManager.LanguageCode"/> name.</summary>
         Language,
+
+        /// <summary>The current content pack's unique manifest ID.</summary>
+        ModId,
 
         /****
         ** Specialized

@@ -9,6 +9,106 @@ When releasing a format change, don't forget to update the smapi.io/json schema!
 
 
 -->
+## Upcoming release
+* Updated for Stardew Valley 1.6.9.
+* Added `ReplaceDelimited` [text operation](author-guide/text-operations.md) (thanks to dmorsecode!).
+* The [`patch reload` command](troubleshooting.md#reload) can now reload patches from a specific `Include` patch (thanks to spacechase0!).
+* Fixed `EditMap` patches with multiple `Target` or `FromFile` values not applying `SetProperties`.
+
+## 2.3.0
+Released 29 June 2024 for SMAPI 4.0.7 or later. See the [release highlights](https://www.patreon.com/posts/107147109).
+
+* Added support for editing list-of-value fields.
+* The [`patch summary` console command](author-guide/troubleshooting.md#summary) can now filter by asset name(s) using a new `asset` argument.
+
+## 2.2.0
+Released 08 June 2024 for SMAPI 4.0.7 or later. See the [release highlights](https://www.patreon.com/posts/105792446).
+
+* Added new tokens:
+  * [`FarmMapAsset`](author-guide/tokens.md#FarmMapAsset) for the farm type's map [asset name](https://stardewvalleywiki.com/Modding:Common_data_field_types#Asset_name) without the `Maps/` prefix (like `Farm_Combat` for the wilderness farm).
+  * [`HasVisitedLocation`](author-guide/tokens.md#HasVisitedLocation) for the locations a player has visited before.
+* Re-enabled Content Patcher 2.1.0's locales change for all content packs.  
+  _This was temporarily disabled for older content packs in 2.1.1 so affected content packs could be updated._
+* Raised minimum versions to SMAPI 4.0.7 and Stardew Valley 1.6.4.  
+  _This avoids errors due to breaking changes in earlier 1.6 patches._
+* Internal refactoring.
+* Fixed the `HavingChild` and `Pregnant` tokens not accounting for the new `SpouseAdopts` field in `Data/Characters`.
+
+## 2.1.2
+Released 23 May 2024 for SMAPI 4.0.0 or later.
+
+* Fixed some older content packs broken in Content Patcher 2.1.0+.
+
+## 2.1.1
+Released 23 May 2024 for SMAPI 4.0.0 or later.
+
+* The localization changes in Content Patcher 2.1 now only apply to newer content packs, to avoid breaking content packs which depend on the old behavior.
+
+## 2.1.0
+Released 22 May 2024 for SMAPI 4.0.0 or later. See the [release highlights](https://www.patreon.com/posts/104747064).
+
+* Added `TargetLocale` field to patch a specific localized variant (like `Data/Bundles.fr-FR` but not `Data/Bundles`, or vice versa).
+* Added [token string API for C# mods](token-strings-api.md) (thanks to spacechase0!).
+* Editing content pack settings through Generic Mod Config Menu now force-updates all patches to apply the config changes.
+* Fixed some mod edits not applying correctly for non-English players.
+* Fixed `MigrateIds` action not applied correctly for some items (thanks to Digus!).
+
+**Update notes for mod authors:**  
+* Content Patcher 2.1 changes how `"Action": "Load"` patches are applied for non-English players. See the
+  [2.1 migration guide](author-migration-guide.md#21) for more info.
+
+## 2.0.6
+Released 15 April 2024 for SMAPI 4.0.0 or later.
+
+* Fixed various issues caused by pre-1.6 content packs replacing data assets which changed format in 1.6.
+* Fixed runtime migrations for pre-1.6 content packs letting them remove 1.6 content.
+
+## 2.0.5
+Released 07 April 2024 for SMAPI 4.0.0 or later.
+
+* Fixed furniture from pre-Stardew-Valley-1.6 content packs shown in-game as "Unnamed Item".
+
+## 2.0.4
+Released 05 April 2024 for SMAPI 4.0.0 or later.
+
+* Fixed `MigrateIds` setting incorrect sprite for former Json Assets items when Json Assets is still installed.
+
+## 2.0.3
+Released 04 April 2024 for SMAPI 4.0.0 or later.
+
+* Content packs can now migrate Json Assets items to Content Patcher using the [`MigrateIds` trigger action](author-guide/trigger-actions.md#migrateids). This works even if the Json Assets content pack is no longer installed.
+
+## 2.0.2
+Released 26 March 2024 for SMAPI 4.0.0 or later.
+
+* Fixed runtime migrations for...
+  * pre-1.6 `Data/Locations` patches when the new asset has invalid spawn conditions;
+  * pre-1.6 `Data/ObjectInformation` patches which edit context tags (thanks to SinZ!), which fixes issues like mayonnaise machines not working when some older content packs are installed.
+
+## 2.0.1
+Released 20 March 2024 for SMAPI 4.0.0 or later.
+
+* Fixed error migrating some content packs to Stardew Valley 1.6.
+
+## 2.0.0
+Released 19 March 2024 for SMAPI 4.0.0 or later. See the [release highlights](https://www.patreon.com/posts/100496385).
+
+* Updated for Stardew Valley 1.6.
+* Added load & edit priorities (see updated [action docs](author-guide.md#actions)).
+* Added [`ModId`](author-guide/tokens.md#ModId) token to get the unique ID of the current content pack.
+* Added runtime migrations for content assets which changed in Stardew Valley 1.6. (Thanks to SinZ for the help creating some of the main migrations!)
+* Added trigger action to change content IDs automatically (see [new docs](author-guide/trigger-actions.md)). 
+* Deprecated `CustomLocations`. This is now a shortcut for editing the new [`Data/Locations` asset](https://stardewvalleywiki.com/Modding:Location_data), and now allows the [new location name format](https://stardewvalleywiki.com/Modding:Modder_Guide/Game_Fundamentals#Unique_string_IDs).
+* Removed `GroupEditsByMod` config option. Edits are now grouped automatically based on mod and priority.
+* Fixed off-by-one position with `MoveEntries` when the target entry is already before the anchor entry.
+* Fixed some tokens being briefly unavailable during part of the save load process (notably `Hearts` and `Relationship`). This affected some specific cases like editing island resort dialogue.
+* Fixed some cases where a `HasMod` condition didn't properly prevent warnings when using a token provided by that mod if it's not installed (thanks to SinZ!).
+
+**Update notes for mod authors:**  
+* Stardew Valley 1.6 has major content changes. Your content packs may still work due to the new runtime migrations,
+  but these can have a significant performance impact. [Updating your code to the latest format](author-migration-guide.md#20)
+  is strongly recommended.
+
 ## 1.30.4
 Released 01 December 2023 for SMAPI 3.18.1 or later.
 

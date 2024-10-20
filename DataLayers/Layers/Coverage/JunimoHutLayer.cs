@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
@@ -6,7 +5,6 @@ using Pathoschild.Stardew.Common;
 using Pathoschild.Stardew.DataLayers.Framework;
 using StardewValley;
 using StardewValley.Buildings;
-using StardewValley.Locations;
 using StardewValley.Menus;
 using StardewValley.TerrainFeatures;
 
@@ -25,10 +23,7 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
         private readonly LegendEntry NotCovered;
 
         /// <summary>The border color for the Junimo hut under the cursor.</summary>
-        private readonly Color SelectedColor = Color.Blue;
-
-        /// <summary>The maximum number of tiles from the center a Junimo hut can harvest.</summary>
-        private readonly int MaxRadius;
+        private readonly Color SelectedColor;
 
         /// <summary>Handles access to the supported mod integrations.</summary>
         private readonly ModIntegrations Mods;
@@ -39,51 +34,41 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
         *********/
         /// <summary>Construct an instance.</summary>
         /// <param name="config">The data layer settings.</param>
+        /// <param name="colors">The colors to render.</param>
         /// <param name="mods">Handles access to the supported mod integrations.</param>
-        public JunimoHutLayer(LayerConfig config, ModIntegrations mods)
+        public JunimoHutLayer(LayerConfig config, ColorScheme colors, ModIntegrations mods)
             : base(I18n.JunimoHuts_Name(), config)
         {
-            // init
-            this.Mods = mods;
-            this.Legend = new[]
-            {
-                this.Covered = new LegendEntry(I18n.Keys.JunimoHuts_CanHarvest, Color.Green),
-                this.NotCovered = new LegendEntry(I18n.Keys.JunimoHuts_CannotHarvest, Color.Red)
-            };
+            const string layerId = "JunimoHutCoverage";
 
-            // set max radius
-            this.MaxRadius = mods.BetterJunimos.IsLoaded
-                ? mods.BetterJunimos.MaxRadius
-                : JunimoHut.cropHarvestRadius;
+            this.Mods = mods;
+            this.SelectedColor = colors.Get(layerId, "Selected", Color.Blue);
+            this.Legend = [
+                this.Covered = new LegendEntry(I18n.Keys.JunimoHuts_CanHarvest, colors.Get(layerId, "Covered", Color.Green)),
+                this.NotCovered = new LegendEntry(I18n.Keys.JunimoHuts_CannotHarvest, colors.Get(layerId, "NotCovered", Color.Red))
+            ];
         }
 
-        /// <summary>Get the updated data layer tiles.</summary>
-        /// <param name="location">The current location.</param>
-        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
-        /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
-        /// <param name="cursorTile">The tile position under the cursor.</param>
-        public override TileGroup[] Update(GameLocation location, in Rectangle visibleArea, in Vector2[] visibleTiles, in Vector2 cursorTile)
+        /// <inheritdoc />
+        public override TileGroup[] Update(ref readonly GameLocation location, ref readonly Rectangle visibleArea, ref readonly IReadOnlySet<Vector2> visibleTiles, ref readonly Vector2 cursorTile)
         {
-            if (location is not BuildableGameLocation buildableLocation)
-                return Array.Empty<TileGroup>();
-
-            // get Junimo huts
-            Rectangle searchArea = visibleArea.Expand(this.MaxRadius);
-            JunimoHut[] huts =
-                (
-                    from JunimoHut hut in buildableLocation.buildings.OfType<JunimoHut>()
-                    where searchArea.Contains(hut.tileX.Value, hut.tileY.Value)
-                    select hut
-                )
-                .ToArray();
+            if (!location.IsBuildableLocation())
+                return [];
 
             // yield Junimo hut coverage
             var groups = new List<TileGroup>();
             var covered = new HashSet<Vector2>();
-            foreach (JunimoHut hut in huts)
+            foreach (Building building in location.buildings)
             {
+                if (building is not JunimoHut hut)
+                    continue;
+
+                Rectangle range = this.GetCoverageArea(hut);
+                if (!range.Intersects(visibleArea))
+                    continue;
+
                 TileData[] tiles = this
-                    .GetCoverage(hut.tileX.Value, hut.tileY.Value)
+                    .GetCoverage(hut, hut.tileX.Value, hut.tileY.Value, visibleArea)
                     .Select(pos => new TileData(pos, this.Covered))
                     .ToArray();
 
@@ -104,7 +89,7 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
             {
                 Vector2 tile = TileHelper.GetTileFromCursor();
                 var tiles = this
-                    .GetCoverage((int)tile.X, (int)tile.Y)
+                    .GetCoverage(new JunimoHut(), (int)tile.X, (int)tile.Y, visibleArea) // TODO: get hut from carpenter menu
                     .Select(pos => new TileData(pos, this.Covered, this.Covered.Color * 0.75f));
 
                 groups.Add(new TileGroup(tiles, outerBorderColor: this.SelectedColor, shouldExport: false));
@@ -128,11 +113,11 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
         private bool IsBuildingHut()
         {
             // vanilla menu
-            if (Game1.activeClickableMenu is CarpenterMenu carpenterMenu && carpenterMenu.CurrentBlueprint.name == "Junimo Hut")
+            if (Game1.activeClickableMenu is CarpenterMenu carpenterMenu && carpenterMenu.Blueprint.Id == "Junimo Hut")
                 return true;
 
             // Pelican Fiber menu
-            if (this.Mods.PelicanFiber.IsLoaded && this.Mods.PelicanFiber.GetBuildMenuBlueprint()?.name == "Junimo Hut")
+            if (this.Mods.PelicanFiber.IsLoaded && this.Mods.PelicanFiber.GetBuildMenuBlueprint()?.Id == "Junimo Hut")
                 return true;
 
             return false;
@@ -146,19 +131,36 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
             return new Rectangle(hut.tileX.Value, hut.tileY.Value, hut.tilesWide.Value, hut.tilesHigh.Value).Contains((int)tile.X, (int)tile.Y);
         }
 
+        /// <summary>Get a Junimo hut's coverage tile area.</summary>
+        /// <param name="hut">The Junimo hut.</param>
+        /// <summary>Get a Junimo hut tile radius.</summary>
+        /// <remarks>Derived from <see cref="StardewValley.Characters.JunimoHarvester.pathfindToNewCrop"/>.</remarks>
+        private Rectangle GetCoverageArea(JunimoHut hut)
+        {
+            // note: offset x/y by one so range to center on door
+            return new Rectangle(
+                hut.tileX.Value + 1 - hut.cropHarvestRadius,
+                hut.tileY.Value + 1 - hut.cropHarvestRadius,
+                hut.cropHarvestRadius + 1 + hut.cropHarvestRadius,
+                hut.cropHarvestRadius + 1 + hut.cropHarvestRadius
+            );
+        }
+
+        /// <summary>Get a Junimo hut's coverage tiles.</summary>
+        /// <param name="hut">The Junimo hut.</param>
         /// <summary>Get a Junimo hut tile radius.</summary>
         /// <param name="tileX">The hut's tile X position.</param>
-        /// <param name="tileY">The hut's tile X position.</param>
-        /// <remarks>Derived from <see cref="StardewValley.Characters.JunimoHarvester.pathFindToNewCrop_doWork"/>.</remarks>
-        private IEnumerable<Vector2> GetCoverage(int tileX, int tileY)
+        /// <param name="tileY">The hut's tile Y position.</param>
+        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
+        /// <remarks>Derived from <see cref="StardewValley.Characters.JunimoHarvester.pathfindToNewCrop"/>.</remarks>
+        private IEnumerable<Vector2> GetCoverage(JunimoHut hut, int tileX, int tileY, Rectangle visibleArea)
         {
-            Vector2 origin = new Vector2(tileX + 1, tileY + 1); // centered on hut door
-            for (int x = (int)origin.X - this.MaxRadius; x <= (int)origin.X + this.MaxRadius; x++)
+            Vector2 door = new Vector2(tileX + 1, tileY + 1);
+            int radius = hut.cropHarvestRadius;
+
+            foreach (Vector2 tile in this.GetVisibleRadiusArea(radius, door, visibleArea).GetTiles())
             {
-                for (int y = (int)origin.Y - this.MaxRadius; y <= (int)origin.Y + this.MaxRadius; y++)
-                {
-                    yield return new Vector2(x, y);
-                }
+                yield return tile;
             }
         }
 
@@ -166,7 +168,7 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
         /// <param name="location">The current location.</param>
         /// <param name="visibleTiles">The tiles currently visible on the screen.</param>
         /// <param name="coveredTiles">The tiles harvested by Junimo huts.</param>
-        private IEnumerable<Vector2> GetUnharvestedCrops(GameLocation location, Vector2[] visibleTiles, HashSet<Vector2> coveredTiles)
+        private IEnumerable<Vector2> GetUnharvestedCrops(GameLocation location, IReadOnlySet<Vector2> visibleTiles, HashSet<Vector2> coveredTiles)
         {
             foreach (Vector2 tile in visibleTiles)
             {

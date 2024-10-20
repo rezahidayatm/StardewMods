@@ -29,24 +29,22 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
             this.MiniBin = new ChestContainer(miniBin, location, miniBin.TileLocation, migrateLegacyOptions: false);
         }
 
-        /// <summary>Get the machine's processing state.</summary>
+        /// <inheritdoc />
         public override MachineState GetState()
         {
             return MachineState.Empty; // always accepts items
         }
 
-        /// <summary>Get the output item.</summary>
+        /// <inheritdoc />
         public override ITrackedStack? GetOutput()
         {
             return null; // no output
         }
 
-        /// <summary>Provide input to the machine.</summary>
-        /// <param name="input">The available items.</param>
-        /// <returns>Returns whether the machine started processing an item.</returns>
+        /// <inheritdoc />
         public override bool SetInput(IStorage input)
         {
-            foreach (ITrackedStack tracker in input.GetItems().Where(p => p.Sample is Object obj && obj.canBeShipped()))
+            foreach (ITrackedStack tracker in input.GetItems().Where(p => p.Sample.canBeShipped()))
             {
                 int prevStack = tracker.Count;
                 this.MiniBin.Store(tracker);

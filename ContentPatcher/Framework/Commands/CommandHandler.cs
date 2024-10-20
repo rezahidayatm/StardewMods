@@ -36,8 +36,7 @@ namespace ContentPatcher.Framework.Commands
         /// <param name="updateContext">A callback which immediately updates the current condition context.</param>
         private static ICommand[] BuildCommands(PerScreen<ScreenManager> screenManager, IMonitor monitor, IGameContentHelper contentHelper, LoadedContentPack[] contentPacks, Func<string?, IContext> getContext, Action updateContext)
         {
-            return new ICommand[]
-            {
+            return [
                 new DumpCommand(
                     monitor: monitor,
                     getPatchManager: () => screenManager.Value.PatchManager
@@ -57,11 +56,13 @@ namespace ContentPatcher.Framework.Commands
                 new ReloadCommand(
                     monitor: monitor,
                     getPatchLoader: () => screenManager.Value.PatchLoader,
+                    getPatchManager: () => screenManager.Value.PatchManager,
                     contentPacks: contentPacks,
                     updateContext: updateContext
                 ),
                 new SummaryCommand(
                     monitor: monitor,
+                    contentHelper: contentHelper,
                     getPatchManager: () => screenManager.Value.PatchManager,
                     getTokenManager: () => screenManager.Value.TokenManager,
                     getCustomLocationLoader: () => screenManager.Value.CustomLocationManager
@@ -70,7 +71,7 @@ namespace ContentPatcher.Framework.Commands
                     monitor: monitor,
                     updateContext: updateContext
                 )
-            };
+            ];
         }
     }
 }

@@ -14,6 +14,7 @@
     ** Section titles
     ****/
     "config.main-options": "주요 설정",
+    "config.audio": "소리",
     "config.controls": "단축키 설정",
     "config.axe": "도끼 기능",
     "config.hoe": "호미 기능",
@@ -24,6 +25,12 @@
     "config.melee-sword": "근접 검 기능",
     "config.other-tools": "다른 기능",
     "config.custom-tools": "사용자 지정 도구",
+
+
+    /****
+    ** Warnings
+    ****/
+    "config.questable-tractor-warning": "Questable Tractor 모드를 사용 중입니다. 이 모드는 트랙터 설정을 바꾸기 때문에, 여기서 설정한 내용이 초기화될 수 있습니다.",
 
 
     /****
@@ -41,6 +48,9 @@
     "config.build-price.name": "트렉터 건설 가격",
     "config.build-price.tooltip": "트랙터 차고를 건설하기 위한 가격. (기본 {{defaultValue}}골드)",
 
+    "config.require-build-materials.name": "건설 재료 필요",
+    "config.require-build-materials.tooltip": "트랙터 차고를 건설 할 때 돈과 함께 다른 재료들이 필요하도록 설정 합니다.",
+
     "config.can-summon-without-garage.name": "차고 없이 소환 가능",
     "config.can-summon-without-garage.tooltip": "차고를 먼저 짓지 않고 임시 트랙터를 소환 할 수 있습니다.",
 
@@ -49,6 +59,19 @@
 
     "config.highlight-radius.name": "하이라이트 반경 표시",
     "config.highlight-radius.tooltip": "거리 옵션을 시각화하는 데 도움이 되도록 트랙터를 탈 때 트랙터 반경을 표시 할 수 있습니다.",
+
+
+    /****
+    ** Audio
+    ****/
+    "config.tractor-sounds.name": "소리 효과",
+    "config.tractor-sounds.tooltip": "트랙터를 탈 때 재생할 소리 효과를 선택합니다. 변경사항이 적용되지 않을 경우 잠을 자거나 게임을 다시 실행 하세요. 기본 값 {{defaultValue}}.",
+    "config.tractor-sounds.value.None": "없음",
+    "config.tractor-sounds.value.Horse": "말 소리",
+    "config.tractor-sounds.value.Tractor": "트랙터 소리",
+
+    "config.tractor-volume.name": "소리 효과 볼륨",
+    "config.tractor-volume.tooltip": "트랙터 소리 효과 볼륨. 기본 값 {{defaultValue}}%.",
 
 
     /****
@@ -94,6 +117,12 @@
     "config.harvest-fruit-trees.name": "과일 수확",
     "config.harvest-fruit-trees.tooltip": "낫으로 과일을 수확 할 수 있습니다.",
 
+    "config.harvest-tree-moss.name": "나무 이끼 수확",
+    "config.harvest-tree-moss.tooltip": "낫으로 나무 이끼를 수확 할 수 있습니다.",
+
+    "config.harvest-tree-seeds.name": "나무 씨앗 수확",
+    "config.harvest-tree-seeds.tooltip": "낫으로 나무 씨앗을 수확 할 수 있습니다.",
+
 
     /****
     ** Crops/forage/grass
@@ -108,7 +137,7 @@
     "config.harvest-giant-crops.tooltip": "도끼로 거대 작물을 제거 할 수 있습니다.",
 
     "config.harvest-crops.name": "작물 수확",
-    "config.Harvest Crops.tooltip": "낫으로 작물을 수확 할 수 있습니다.",
+    "config.harvest-crops.tooltip": "낫으로 작물을 수확 할 수 있습니다.",
 
     "config.harvest-flowers.name": "꽃 수확",
     "config.harvest-flowers.tooltip": "낫으로 꽃을 수확 할 수 있습니다.",
@@ -116,8 +145,11 @@
     "config.harvest-forage.name": "건초 수확",
     "config.harvest-forage.tooltip": "낫으로 건초를 수확 할 수 있습니다.",
 
-    "config.harvest-grass.name": "잔디 제거",
-    "config.harvest-grass.tooltip": "낫으로 잔디를 제거 할 수 있습니다.",
+    "config.harvest-blue-grass.name": "파란 잔디 제거",
+    "config.harvest-blue-grass.tooltip": "낫으로 파란 잔디를 제거할 수 있습니다.",
+
+    "config.harvest-non-blue-grass.name": "파란색이 아닌 잔디 제거",
+    "config.harvest-non-blue-grass.tooltip": "낫으로 파란색이 아닌 잔디를 제거할 수 있습니다.",
 
 
     /****
@@ -138,6 +170,9 @@
 
     "config.dig-artifact-spots.name": "유물 발굴",
     "config.dig-artifact-spots.tooltip": "유물 발견시 호미로 팔 수 있습니다.",
+
+    "config.dig-seed-spots.name": "씨앗 발굴",
+    "config.dig-seed-spots.tooltip": "씨앗 발견시 호미로 팔 수 있습니다.",
 
     "config.clear-tilled-dirt.name": "경작 된 땅 제거",
     "config.clear-tilled-dirt.tooltip": "곡괭이로 경작된 땅을 제거 할 수 있습니다.",
@@ -172,8 +207,8 @@
     /****
     ** Melee
     ****/
-    "config.Attack-monsters.name": "공격 몬스터",
-    "config.Attack-monsters.tooltip": "몬스터를 공격 할 수 있습니다.\n(트랙터의 도구 속도로 인해 엄청난 힘을 발휘합니다.)",
+    "config.attack-monsters.name": "공격 몬스터",
+    "config.attack-monsters.tooltip": "몬스터를 공격 할 수 있습니다.\n(트랙터의 도구 속도로 인해 엄청난 힘을 발휘합니다.)",
 
 
     /****

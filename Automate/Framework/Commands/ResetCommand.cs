@@ -28,11 +28,12 @@ namespace Pathoschild.Stardew.Automate.Framework.Commands
         /// <inheritdoc />
         public override string GetDescription()
         {
-            return @"
-                automate rescan
+            return
+                """
+                automate reset
                    Usage: automate reset
                    Resets all cached data and rescans the world for machines.
-            ";
+                """;
         }
 
         /// <inheritdoc />

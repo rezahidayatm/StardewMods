@@ -17,7 +17,7 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Buildings
         public FishPondMachine(FishPond pond, GameLocation location)
             : base(pond, location, BaseMachine.GetTileAreaFor(pond)) { }
 
-        /// <summary>Get the machine's processing state.</summary>
+        /// <inheritdoc />
         public override MachineState GetState()
         {
             if (this.Machine.isUnderConstruction())
@@ -28,15 +28,13 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Buildings
                 : MachineState.Processing;
         }
 
-        /// <summary>Get the machine output.</summary>
+        /// <inheritdoc />
         public override ITrackedStack? GetOutput()
         {
             return this.GetTracked(this.Machine.output.Value, onEmpty: this.OnOutputTaken);
         }
 
-        /// <summary>Provide input to the machine.</summary>
-        /// <param name="input">The available items.</param>
-        /// <returns>Returns whether the machine started processing an item.</returns>
+        /// <inheritdoc />
         public override bool SetInput(IStorage input)
         {
             return false; // no input

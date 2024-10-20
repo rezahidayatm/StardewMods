@@ -26,47 +26,40 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
         public FeedHopperMachine(Building silo, GameLocation location)
             : base(location, BaseMachine.GetTileAreaFor(silo)) { }
 
-        /// <summary>Get the machine's processing state.</summary>
+        /// <inheritdoc />
         public override MachineState GetState()
         {
-            Farm farm = Game1.getFarm();
-            return this.GetFreeSpace(farm) > 0
+            return this.CanStoreHay(out _, out _)
                 ? MachineState.Empty // 'empty' insofar as it will accept more input, not necessarily empty
                 : MachineState.Disabled;
         }
 
-        /// <summary>Get the output item.</summary>
+        /// <inheritdoc />
         public override ITrackedStack? GetOutput()
         {
             return null;
         }
 
-        /// <summary>Provide input to the machine.</summary>
-        /// <param name="input">The available items.</param>
-        /// <returns>Returns whether the machine started processing an item.</returns>
+        /// <inheritdoc />
         public override bool SetInput(IStorage input)
         {
-            Farm farm = Game1.getFarm();
-
-            // skip if full
-            if (this.GetFreeSpace(farm) <= 0)
+            if (!this.CanStoreHay(out GameLocation location, out int freeSpace))
                 return false;
 
-            // try to add hay (178) until full
+            // try to add hay until full
             bool anyPulled = false;
-            foreach (ITrackedStack stack in input.GetItems().Where(p => p.Type == ItemType.Object && p.Sample.ParentSheetIndex == 178))
+            foreach (ITrackedStack stack in input.GetItems().Where(p => p.Sample.QualifiedItemId == SObject.hayQID))
             {
-                // get free space
-                int space = this.GetFreeSpace(farm);
-                if (space <= 0)
-                    return anyPulled;
-
                 // pull hay
-                int maxToAdd = Math.Min(stack.Count, space);
-                int added = maxToAdd - farm.tryToAddHay(maxToAdd);
+                int maxToAdd = Math.Min(stack.Count, freeSpace);
+                int added = maxToAdd - location.tryToAddHay(maxToAdd);
                 stack.Reduce(added);
                 if (added > 0)
                     anyPulled = true;
+
+                freeSpace -= added;
+                if (freeSpace <= 0)
+                    break;
             }
 
             return anyPulled;
@@ -76,12 +69,28 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
         /*********
         ** Private methods
         *********/
-        /// <summary>Get the amount of hay the hopper can still accept before it's full.</summary>
-        /// <param name="farm">The farm to check.</param>
-        /// <remarks>Derived from <see cref="Farm.tryToAddHay"/>.</remarks>
-        private int GetFreeSpace(Farm farm)
+        /// <summary>Get whether the machine can store any hay.</summary>
+        /// <param name="location">The location in which hay should be stored, if applicable.</param>
+        /// <param name="freeSpace">The amount of further hay which can be stored.</param>
+        /// <returns>Returns whether any hay can be stored in the location.</returns>
+        private bool CanStoreHay(out GameLocation location, out int freeSpace)
         {
-            return Utility.numSilos() * 240 - farm.piecesOfHay.Value;
+            location = this.Location;
+            int capacity = location.GetHayCapacity();
+
+            if (capacity <= 0)
+            {
+                GameLocation parentLocation = location.GetParentLocation();
+                capacity = parentLocation?.GetHayCapacity() ?? 0;
+                if (capacity > 0)
+                    location = parentLocation!;
+            }
+
+            freeSpace = capacity - location.piecesOfHay.Value;
+            if (freeSpace < 0)
+                freeSpace = 0;
+
+            return freeSpace > 0;
         }
     }
 }

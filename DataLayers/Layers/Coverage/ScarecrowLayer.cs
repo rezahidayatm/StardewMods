@@ -22,7 +22,7 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
         private readonly LegendEntry Exposed;
 
         /// <summary>The border color for the scarecrow under the cursor.</summary>
-        private readonly Color SelectedColor = Color.Blue;
+        private readonly Color SelectedColor;
 
         /// <summary>The maximum number of tiles from the center to search for scarecrows.</summary>
         private readonly int MaxSearchRadius = 20;
@@ -33,42 +33,32 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
         *********/
         /// <summary>Construct an instance.</summary>
         /// <param name="config">The data layer settings.</param>
-        public ScarecrowLayer(LayerConfig config)
+        /// <param name="colors">The colors to render.</param>
+        public ScarecrowLayer(LayerConfig config, ColorScheme colors)
             : base(I18n.Scarecrows_Name(), config)
         {
-            this.Legend = new[]
-            {
-                this.Covered = new LegendEntry(I18n.Keys.Scarecrows_Protected, Color.Green),
-                this.Exposed = new LegendEntry(I18n.Keys.Scarecrows_Exposed, Color.Red)
-            };
+            const string layerId = "ScarecrowCoverage";
+
+            this.SelectedColor = colors.Get(layerId, "Selected", Color.Blue);
+            this.Legend = [
+                this.Covered = new LegendEntry(I18n.Keys.Scarecrows_Protected, colors.Get(layerId, "Covered", Color.Green)),
+                this.Exposed = new LegendEntry(I18n.Keys.Scarecrows_Exposed, colors.Get(layerId, "NotCovered", Color.Red))
+            ];
         }
 
-        /// <summary>Get the updated data layer tiles.</summary>
-        /// <param name="location">The current location.</param>
-        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
-        /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
-        /// <param name="cursorTile">The tile position under the cursor.</param>
-        public override TileGroup[] Update(GameLocation location, in Rectangle visibleArea, in Vector2[] visibleTiles, in Vector2 cursorTile)
+        /// <inheritdoc />
+        public override TileGroup[] Update(ref readonly GameLocation location, ref readonly Rectangle visibleArea, ref readonly IReadOnlySet<Vector2> visibleTiles, ref readonly Vector2 cursorTile)
         {
-            // get scarecrows
-            Vector2[] searchTiles = visibleArea.Expand(this.MaxSearchRadius).GetTiles().ToArray();
-            SObject[] scarecrows =
-                (
-                    from Vector2 tile in searchTiles
-                    where location.objects.ContainsKey(tile)
-                    let scarecrow = location.objects[tile]
-                    where scarecrow.IsScarecrow()
-                    select scarecrow
-                )
-                .ToArray();
-
             // yield scarecrow coverage
             var covered = new HashSet<Vector2>();
             var groups = new List<TileGroup>();
-            foreach (SObject scarecrow in scarecrows)
+            foreach (Vector2 origin in visibleArea.Expand(this.MaxSearchRadius).GetTiles())
             {
+                if (!location.objects.TryGetValue(origin, out SObject scarecrow) || !scarecrow.IsScarecrow())
+                    continue;
+
                 TileData[] tiles = this
-                    .GetCoverage(scarecrow)
+                    .GetCoverage(scarecrow, visibleArea)
                     .Select(pos => new TileData(pos, this.Covered))
                     .ToArray();
 
@@ -89,7 +79,7 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
             if (heldObj?.IsScarecrow() == true)
             {
                 var tiles = this
-                    .GetCoverage(heldObj, cursorTile)
+                    .GetCoverage(heldObj, visibleArea, cursorTile)
                     .Select(pos => new TileData(pos, this.Covered, this.Covered.Color * 0.75f));
                 groups.Add(new TileGroup(tiles, outerBorderColor: this.SelectedColor, shouldExport: false));
             }
@@ -110,21 +100,18 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
 
         /// <summary>Get a scarecrow tile radius.</summary>
         /// <param name="scarecrow">The scarecrow to check.</param>
-        /// <param name="overrideOrigin">The tile position to check from, if different from <see cref="Object.TileLocation"/>.</param>
+        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
+        /// <param name="overrideOrigin">The tile position to check from, if different from <see cref="SObject.TileLocation"/>.</param>
         /// <remarks>Derived from <see cref="Farm.addCrows"/>.</remarks>
-        private IEnumerable<Vector2> GetCoverage(SObject scarecrow, Vector2? overrideOrigin = null)
+        private IEnumerable<Vector2> GetCoverage(SObject scarecrow, Rectangle visibleArea, Vector2? overrideOrigin = null)
         {
             Vector2 origin = overrideOrigin ?? scarecrow.TileLocation;
             int radius = scarecrow.GetRadiusForScarecrow();
 
-            for (int x = (int)origin.X - radius; x <= origin.X + radius; x++)
+            foreach (Vector2 tile in this.GetVisibleRadiusArea(radius, origin, visibleArea).GetTiles())
             {
-                for (int y = (int)origin.Y - radius; y <= origin.Y + radius; y++)
-                {
-                    Vector2 tile = new Vector2(x, y);
-                    if (Vector2.Distance(tile, origin) < radius)
-                        yield return tile;
-                }
+                if (Vector2.Distance(tile, origin) < radius)
+                    yield return tile;
             }
         }
 
@@ -132,7 +119,7 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
         /// <param name="location">The current location.</param>
         /// <param name="visibleTiles">The tiles currently visible on the screen.</param>
         /// <param name="coveredTiles">The tiles protected by a scarecrow.</param>
-        private IEnumerable<Vector2> GetExposedCrops(GameLocation location, Vector2[] visibleTiles, HashSet<Vector2> coveredTiles)
+        private IEnumerable<Vector2> GetExposedCrops(GameLocation location, IReadOnlySet<Vector2> visibleTiles, HashSet<Vector2> coveredTiles)
         {
             foreach (Vector2 tile in visibleTiles)
             {

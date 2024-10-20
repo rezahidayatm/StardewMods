@@ -28,13 +28,13 @@ namespace Pathoschild.Stardew.Automate.Framework
         /*********
         ** Public methods
         *********/
-        /// <summary>Get the machine's processing state.</summary>
+        /// <inheritdoc />
         public override MachineState GetState()
         {
             return this.GetGenericState();
         }
 
-        /// <summary>Get the output item.</summary>
+        /// <inheritdoc />
         public override ITrackedStack? GetOutput()
         {
             return this.GetTracked(this.Machine.heldObject.Value, onEmpty: this.GenericReset);

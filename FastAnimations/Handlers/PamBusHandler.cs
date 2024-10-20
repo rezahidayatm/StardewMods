@@ -6,38 +6,41 @@ namespace Pathoschild.Stardew.FastAnimations.Handlers
 {
     /// <summary>Handles Pam's bus arriving/departing animation.</summary>
     /// <remarks>See game logic in <see cref="BusStop.UpdateWhenCurrentLocation"/> and <see cref="Desert.UpdateWhenCurrentLocation"/>.</remarks>
-    internal class PamBusHandler : BaseAnimationHandler
+    internal sealed class PamBusHandler : BaseAnimationHandler
     {
         /*********
         ** Public methods
         *********/
-        /// <summary>Construct an instance.</summary>
-        /// <param name="multiplier">The animation speed multiplier to apply.</param>
+        /// <inheritdoc />
         public PamBusHandler(float multiplier)
             : base(multiplier) { }
 
-        /// <summary>Get whether the animation is currently active.</summary>
-        /// <param name="playerAnimationID">The player's current animation ID.</param>
-        public override bool IsEnabled(int playerAnimationID)
+        /// <inheritdoc />
+        public override bool TryApply(int playerAnimationId)
         {
-            if (Game1.currentLocation is BusStop stop)
-                return stop.drivingOff || stop.drivingBack;
-            if (Game1.currentLocation is Desert desert)
-                return desert.drivingOff || desert.drivingBack;
+            return
+                this.IsAnimating()
+                && this.ApplySkipsWhile(() =>
+                {
+                    Game1.currentLocation.UpdateWhenCurrentLocation(Game1.currentGameTime);
 
-            return false;
+                    return this.IsAnimating();
+                });
         }
 
-        /// <summary>Perform any logic needed on update while the animation is active.</summary>
-        /// <param name="playerAnimationID">The player's current animation ID.</param>
-        public override void Update(int playerAnimationID)
-        {
-            GameLocation location = Game1.currentLocation;
 
-            this.ApplySkips(
-                run: () => location.UpdateWhenCurrentLocation(Game1.currentGameTime),
-                until: () => !this.IsEnabled(playerAnimationID)
-            );
+        /*********
+        ** Private methods
+        *********/
+        /// <summary>Get whether the animation is playing now.</summary>
+        private bool IsAnimating()
+        {
+            return Game1.currentLocation switch
+            {
+                BusStop stop => stop.drivingOff || stop.drivingBack,
+                Desert desert => desert.drivingOff || desert.drivingBack,
+                _ => false
+            };
         }
     }
 }

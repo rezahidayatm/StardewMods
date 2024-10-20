@@ -21,8 +21,11 @@ namespace ContentPatcher.Framework.ConfigModels
         /// <summary>The patch type to apply.</summary>
         public string? Action { get; set; }
 
-        /// <summary>The asset key to change.</summary>
+        /// <summary>The asset name to change.</summary>
         public string? Target { get; set; }
+
+        /// <summary>The locale code in the target asset's name to match (like <c>fr-FR</c> to target <c>Characters/Dialogue/Abigail.fr-FR</c>), or an empty string to match only the base unlocalized asset, or <c>null</c> to match all localized or unlocalized variants of the <see cref="Target"/>.</summary>
+        public string? TargetLocale { get; set; }
 
         /// <summary>Indicates when a patch should be updated.</summary>
         public string? Update { get; set; }
@@ -38,12 +41,15 @@ namespace ContentPatcher.Framework.ConfigModels
         [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Auto)]
         public InvariantDictionary<string?> When { get; } = new();
 
+        /// <summary>The priority for this patch when multiple patches apply.</summary>
+        public string? Priority { get; set; }
+
         /****
         ** Multiple actions
         ****/
         /// <summary>The text operations to apply.</summary>
         [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Auto)]
-        public List<TextOperationConfig?> TextOperations { get; } = new();
+        public List<TextOperationConfig?> TextOperations { get; } = [];
 
         /****
         ** EditImage
@@ -70,11 +76,11 @@ namespace ContentPatcher.Framework.ConfigModels
 
         /// <summary>The records to reorder, if the target is a list asset.</summary>
         [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Auto)]
-        public List<PatchMoveEntryConfig?> MoveEntries { get; } = new();
+        public List<PatchMoveEntryConfig?> MoveEntries { get; } = [];
 
         /// <summary>The field within the data asset to which edits should be applied, or empty to apply to the root asset.</summary>
         [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Auto)]
-        public List<string> TargetField { get; } = new();
+        public List<string> TargetField { get; } = [];
 
         /****
         ** EditMap
@@ -85,11 +91,11 @@ namespace ContentPatcher.Framework.ConfigModels
 
         /// <summary>The warps to add to the location.</summary>
         [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Auto)]
-        public List<string?> AddWarps { get; } = new();
+        public List<string?> AddWarps { get; } = [];
 
         /// <summary>The map tiles to edit.</summary>
         [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Auto)]
-        public List<PatchMapTileConfig?> MapTiles { get; } = new();
+        public List<PatchMapTileConfig?> MapTiles { get; } = [];
 
 
         /*********
@@ -111,6 +117,7 @@ namespace ContentPatcher.Framework.ConfigModels
             this.FromFile = other.FromFile;
             this.Enabled = other.Enabled;
             this.When = other.When.Clone();
+            this.Priority = other.Priority;
 
             // multiple actions
             this.TextOperations = other.TextOperations.Select(p => p != null ? new TextOperationConfig(p) : null).ToList();

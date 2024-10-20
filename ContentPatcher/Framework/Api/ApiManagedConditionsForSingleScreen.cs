@@ -7,7 +7,7 @@ using ContentPatcher.Framework.Tokens;
 
 namespace ContentPatcher.Framework.Api
 {
-    /// <summary>A set of parsed conditions linked to the Content Patcher context for an API consumer, which assume they're always run on the same screen.</summary>
+    /// <summary>A set of parsed conditions linked to the Content Patcher context for an API consumer. This implementation assumes it's always run on the same screen.</summary>
     internal class ApiManagedConditionsForSingleScreen : IManagedConditions
     {
         /*********
@@ -30,7 +30,7 @@ namespace ContentPatcher.Framework.Api
         ** Accessors
         *********/
         /// <inheritdoc />
-        [MemberNotNullWhen(false, nameof(ApiManagedConditions.ValidationError))]
+        [MemberNotNullWhen(false, nameof(ApiManagedConditionsForSingleScreen.ValidationError))]
         public bool IsValid { get; }
 
         /// <inheritdoc />
@@ -69,7 +69,7 @@ namespace ContentPatcher.Framework.Api
         {
             // skip unneeded updates
             if (!this.ShouldUpdate())
-                return Enumerable.Empty<int>();
+                return [];
             this.LastUpdateTick = this.Context.UpdateTick;
 
             // update context
@@ -83,7 +83,7 @@ namespace ContentPatcher.Framework.Api
             // return screen ID if it changed
             return this.IsMatch != wasMatch
                 ? new[] { StardewModdingAPI.Context.ScreenId }
-                : Enumerable.Empty<int>();
+                : [];
         }
 
         /// <inheritdoc />

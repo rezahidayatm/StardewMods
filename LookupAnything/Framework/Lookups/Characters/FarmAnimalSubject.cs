@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Pathoschild.Stardew.Common;
 using Pathoschild.Stardew.LookupAnything.Framework.Constants;
 using Pathoschild.Stardew.LookupAnything.Framework.DebugFields;
 using Pathoschild.Stardew.LookupAnything.Framework.Fields;
@@ -38,18 +39,18 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
             this.Target = animal;
         }
 
-        /// <summary>Get the data to display for this subject.</summary>
+        /// <inheritdoc />
         public override IEnumerable<ICustomField> GetData()
         {
             FarmAnimal animal = this.Target;
 
             // calculate maturity
-            bool isFullyGrown = animal.age.Value >= animal.ageWhenMature.Value;
+            bool isFullyGrown = animal.isAdult();
             int daysUntilGrown = 0;
             SDate? dayOfMaturity = null;
             if (!isFullyGrown)
             {
-                daysUntilGrown = animal.ageWhenMature.Value - animal.age.Value;
+                daysUntilGrown = animal.GetAnimalData().DaysToMature - animal.age.Value;
                 dayOfMaturity = SDate.Now().AddDays(daysUntilGrown);
             }
 
@@ -58,13 +59,13 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
             yield return new PercentageBarField(I18n.Animal_Happiness(), animal.happiness.Value, byte.MaxValue, Color.Green, Color.Gray, I18n.Generic_Percent(percent: (int)Math.Round(animal.happiness.Value / (this.Constants.AnimalMaxHappiness * 1f) * 100)));
             yield return new GenericField(I18n.Animal_Mood(), animal.getMoodMessage());
             yield return new GenericField(I18n.Animal_Complaints(), this.GetMoodReason(animal));
-            yield return new ItemIconField(this.GameHelper, I18n.Animal_ProduceReady(), animal.currentProduce.Value > 0 ? this.GameHelper.GetObjectBySpriteIndex(animal.currentProduce.Value) : null, this.Codex);
+            yield return new ItemIconField(this.GameHelper, I18n.Animal_ProduceReady(), CommonHelper.IsItemId(animal.currentProduce.Value, allowZero: false) ? ItemRegistry.Create(animal.currentProduce.Value) : null, this.Codex);
             if (!isFullyGrown)
                 yield return new GenericField(I18n.Animal_Growth(), $"{I18n.Generic_Days(count: daysUntilGrown)} ({this.Stringify(dayOfMaturity)})");
             yield return new GenericField(I18n.Animal_SellsFor(), GenericField.GetSaleValueString(animal.getSellPrice(), 1));
         }
 
-        /// <summary>Get raw debug data to display for this subject.</summary>
+        /// <inheritdoc />
         public override IEnumerable<IDebugField> GetDebugFields()
         {
             FarmAnimal target = this.Target;
@@ -80,11 +81,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
                 yield return field;
         }
 
-        /// <summary>Draw the subject portrait (if available).</summary>
-        /// <param name="spriteBatch">The sprite batch being drawn.</param>
-        /// <param name="position">The position at which to draw.</param>
-        /// <param name="size">The size of the portrait to draw.</param>
-        /// <returns>Returns <c>true</c> if a portrait was drawn, else <c>false</c>.</returns>
+        /// <inheritdoc />
         public override bool DrawPortrait(SpriteBatch spriteBatch, Vector2 position, Vector2 size)
         {
             FarmAnimal animal = this.Target;
@@ -100,7 +97,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
         /// <param name="animal">The farm animal.</param>
         private string GetMoodReason(FarmAnimal animal)
         {
-            List<string> factors = new();
+            List<string> factors = [];
 
             // winter without heat
             if (Game1.IsWinter && Game1.currentLocation.numberOfObjectsWithName(Constant.ItemNames.Heater) <= 0)
@@ -131,7 +128,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
                 factors.Add(I18n.Animal_Complaints_NotPetted());
 
             // return factors
-            return string.Join(", ", factors);
+            return I18n.List(factors);
         }
     }
 }

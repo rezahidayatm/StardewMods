@@ -5,6 +5,10 @@
     "farm.name": "Kleine Strand Farm",
     "farm.description": "Ein kleiner fruchtbarer Pocket-Strand, an dem man sowohl Fluss- als auch Meeresfische fangen kann.",
 
+    "farm.fish-areas.river": "Fluss",
+    "farm.fish-areas.estuary": "Flussmündung",
+    "farm.fish-areas.ocean": "Ozean",
+
 
     /*********
     ** Generic Mod Config Menu UI

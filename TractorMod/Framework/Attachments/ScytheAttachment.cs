@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -6,6 +7,7 @@ using Pathoschild.Stardew.Common;
 using Pathoschild.Stardew.TractorMod.Framework.Config;
 using StardewModdingAPI;
 using StardewValley;
+using StardewValley.GameData.Crops;
 using StardewValley.Locations;
 using StardewValley.Objects;
 using StardewValley.TerrainFeatures;
@@ -23,8 +25,15 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
         /// <summary>The attachment settings.</summary>
         private readonly ScytheConfig Config;
 
-        /// <summary>A cache of is-flower checks by item ID for <see cref="ShouldHarvest"/>.</summary>
-        private readonly Dictionary<int, bool> IsFlowerCache = new();
+        /// <summary>Simplifies access to private code.</summary>
+        private readonly IReflectionHelper Reflection;
+
+        /// <summary>A cache of is-flower checks by item ID for <see cref="ShouldHarvest(Crop)"/>.</summary>
+        private readonly Dictionary<string, bool> IsFlowerCache = new();
+
+        /// <summary>A temporary axe instance for harvesting green weed bushes.</summary>
+        private readonly Axe Axe = ItemRegistry.Create<Axe>("(T)IridiumAxe");
+
 
 
         /*********
@@ -35,16 +44,13 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
         /// <param name="modRegistry">Fetches metadata about loaded mods.</param>
         /// <param name="reflection">Simplifies access to private code.</param>
         public ScytheAttachment(ScytheConfig config, IModRegistry modRegistry, IReflectionHelper reflection)
-            : base(modRegistry, reflection)
+            : base(modRegistry)
         {
             this.Config = config;
+            this.Reflection = reflection;
         }
 
-        /// <summary>Get whether the tool is currently enabled.</summary>
-        /// <param name="player">The current player.</param>
-        /// <param name="tool">The tool selected by the player (if any).</param>
-        /// <param name="item">The item selected by the player (if any).</param>
-        /// <param name="location">The current location.</param>
+        /// <inheritdoc />
         public override bool IsEnabled(Farmer player, Tool? tool, Item? item, GameLocation location)
         {
             return
@@ -52,14 +58,7 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
                 && weapon.isScythe();
         }
 
-        /// <summary>Apply the tool to the given tile.</summary>
-        /// <param name="tile">The tile to modify.</param>
-        /// <param name="tileObj">The object on the tile.</param>
-        /// <param name="tileFeature">The feature on the tile.</param>
-        /// <param name="player">The current player.</param>
-        /// <param name="tool">The tool selected by the player (if any).</param>
-        /// <param name="item">The item selected by the player (if any).</param>
-        /// <param name="location">The current location.</param>
+        /// <inheritdoc />
         public override bool Apply(Vector2 tile, SObject? tileObj, TerrainFeature? tileFeature, Farmer player, Tool? tool, Item? item, GameLocation location)
         {
             tool = tool.AssertNotNull();
@@ -79,7 +78,7 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
                     return true;
 
                 // indoor pot bush
-                if (this.TryHarvestBush(pot?.bush.Value, location))
+                if (this.TryHarvestBush(pot?.bush.Value))
                     return true;
             }
 
@@ -88,11 +87,11 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
                 return true;
 
             // grass
-            if (this.Config.HarvestGrass && this.TryHarvestGrass(tileFeature as Grass, location, tile))
+            if (tileFeature is Grass grass && this.ShouldHarvest(grass) && this.TryHarvestGrass(grass, location, tile, player, tool))
                 return true;
 
             // tree
-            if (this.TryHarvestTree(tileFeature, location, tile))
+            if (this.TryHarvestTree(tileFeature, tile, tool))
                 return true;
 
             // weeds
@@ -103,16 +102,25 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
             Rectangle tileArea = this.GetAbsoluteTileArea(tile);
             if (this.Config.HarvestForage)
             {
-                Bush? bush = tileFeature as Bush ?? location.largeTerrainFeatures.FirstOrDefault(p => p.getBoundingBox(p.tilePosition.Value).Intersects(tileArea)) as Bush;
-                if (this.TryHarvestBush(bush, location))
+                Bush? bush = tileFeature as Bush ?? location.largeTerrainFeatures.FirstOrDefault(p => p.getBoundingBox().Intersects(tileArea)) as Bush;
+                if (this.TryHarvestBush(bush))
                     return true;
+            }
+
+            // green rain bush
+            if (this.Config.HarvestGreenRainBushes)
+            {
+                if (this.TryGetResourceClumpCoveringTile(location, tile, player, this.Reflection, out ResourceClump? clump, out Func<Tool, bool>? applyTool) && clump.IsGreenRainBush())
+                {
+                    applyTool(this.Axe);
+                    return true;
+                }
             }
 
             return false;
         }
 
-        /// <summary>Method called when the tractor attachments have been activated for a location.</summary>
-        /// <param name="location">The current tractor location.</param>
+        /// <inheritdoc />
         public override void OnActivated(GameLocation location)
         {
             base.OnActivated(location);
@@ -132,11 +140,22 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
                 return this.Config.HarvestFlowers;
 
             // forage
-            if (crop.whichForageCrop.Value > 0)
+            if (CommonHelper.IsItemId(crop.whichForageCrop.Value, allowZero: false))
                 return this.Config.HarvestForage;
 
             // crop
             return this.Config.HarvestCrops;
+        }
+
+        /// <summary>Get whether a grass should be harvested.</summary>
+        /// <param name="grass">The grass to check.</param>
+        private bool ShouldHarvest(Grass grass)
+        {
+            return grass.grassType.Value switch
+            {
+                Grass.blueGrass => this.Config.HarvestBlueGrass,
+                _ => this.Config.HarvestNonBlueGrass
+            };
         }
 
         /// <summary>Get whether a crop counts as a flower.</summary>
@@ -146,12 +165,15 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
             if (crop == null)
                 return false;
 
-            int cropId = crop.indexOfHarvest.Value;
+            string cropId = crop.indexOfHarvest.Value;
+            if (string.IsNullOrWhiteSpace(cropId))
+                return false;
+
             if (!this.IsFlowerCache.TryGetValue(cropId, out bool isFlower))
             {
                 try
                 {
-                    isFlower = new SObject(cropId, 1).Category == SObject.flowersCategory;
+                    isFlower = ItemRegistry.GetData(cropId)?.Category == SObject.flowersCategory;
                 }
                 catch
                 {
@@ -165,9 +187,8 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
 
         /// <summary>Harvest a bush if it's ready.</summary>
         /// <param name="bush">The bush to harvest.</param>
-        /// <param name="location">The location being harvested.</param>
         /// <returns>Returns whether it was harvested.</returns>
-        private bool TryHarvestBush([NotNullWhen(true)] Bush? bush, GameLocation location)
+        private bool TryHarvestBush([NotNullWhen(true)] Bush? bush)
         {
             // harvest if ready
             if (bush?.tileSheetOffset.Value == 1)
@@ -176,7 +197,7 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
                 bool isBerryBush = !isTeaBush && bush.size.Value == Bush.mediumBush && !bush.townBush.Value;
                 if ((isTeaBush && this.Config.HarvestCrops) || (isBerryBush && this.Config.HarvestForage))
                 {
-                    bush.performUseAction(bush.tilePosition.Value, location);
+                    bush.performUseAction(bush.Tile);
                     return true;
                 }
             }
@@ -203,23 +224,37 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
             // harvest
             if (this.ShouldHarvest(dirt.crop))
             {
-                // scythe or pick crops
-                if (dirt.crop.harvest((int)tile.X, (int)tile.Y, dirt))
+                CropData? data = dirt.crop.GetData();
+                HarvestMethod? wasHarvestMethod = data?.HarvestMethod;
+
+                try
                 {
-                    bool isScytheCrop = dirt.crop.harvestMethod.Value == Crop.sickleHarvest;
+                    if (data != null)
+                        data.HarvestMethod = HarvestMethod.Scythe; // prevent player from visually stooping off of tractor to grab crop
 
-                    dirt.destroyCrop(tile, showAnimation: isScytheCrop, location);
-                    if (!isScytheCrop && location is IslandLocation && Game1.random.NextDouble() < 0.05)
-                        Game1.player.team.RequestLimitedNutDrops("IslandFarming", location, (int)tile.X * 64, (int)tile.Y * 64, 5);
+                    // scythe or pick crops
+                    if (dirt.crop.harvest((int)tile.X, (int)tile.Y, dirt))
+                    {
+                        bool isScytheCrop = dirt.crop.GetHarvestMethod() == HarvestMethod.Scythe;
 
-                    return true;
+                        dirt.destroyCrop(showAnimation: isScytheCrop);
+                        if (!isScytheCrop && location is IslandLocation && Game1.random.NextDouble() < 0.05)
+                            Game1.player.team.RequestLimitedNutDrops("IslandFarming", location, (int)tile.X * 64, (int)tile.Y * 64, 5);
+
+                        return true;
+                    }
+
+                    // hoe crops (e.g. ginger)
+                    if (dirt.crop.hitWithHoe((int)tile.X, (int)tile.Y, location, dirt))
+                    {
+                        dirt.destroyCrop(showAnimation: false);
+                        return true;
+                    }
                 }
-
-                // hoe crops (e.g. ginger)
-                if (dirt.crop.hitWithHoe((int)tile.X, (int)tile.Y, location, dirt))
+                finally
                 {
-                    dirt.destroyCrop(tile, showAnimation: false, location);
-                    return true;
+                    if (data != null)
+                        data.HarvestMethod = wasHarvestMethod!.Value;
                 }
             }
 
@@ -242,17 +277,17 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
 
         /// <summary>Try to harvest a tree.</summary>
         /// <param name="terrainFeature">The tree to harvest.</param>
-        /// <param name="location">The location being harvested.</param>
         /// <param name="tile">The tile being harvested.</param>
+        /// <param name="scythe">The scythe being used.</param>
         /// <returns>Returns whether it was harvested.</returns>
-        private bool TryHarvestTree([NotNullWhen(true)] TerrainFeature? terrainFeature, GameLocation location, Vector2 tile)
+        private bool TryHarvestTree([NotNullWhen(true)] TerrainFeature? terrainFeature, Vector2 tile, Tool scythe)
         {
             switch (terrainFeature)
             {
                 case FruitTree tree:
-                    if (this.Config.HarvestFruitTrees && tree.fruitsOnTree.Value > 0)
+                    if (this.Config.HarvestFruitTrees && tree.fruit.Count > 0)
                     {
-                        tree.performUseAction(tile, location);
+                        tree.performUseAction(tile);
                         return true;
                     }
                     break;
@@ -260,11 +295,17 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
                 case Tree tree:
                     if (tree.hasSeed.Value && !tree.tapped.Value)
                     {
-                        bool shouldHarvest = tree.treeType.Value is Tree.palmTree or Tree.palmTree2
+                        bool shouldHarvest = tree.treeType.Value is (Tree.palmTree or Tree.palmTree2)
                             ? this.Config.HarvestFruitTrees
                             : this.Config.HarvestTreeSeeds;
 
-                        if (shouldHarvest && tree.performUseAction(tile, location))
+                        if (shouldHarvest && tree.performUseAction(tile))
+                            return true;
+                    }
+
+                    if (tree.hasMoss.Value && this.Config.HarvestTreeMoss)
+                    {
+                        if (tree.performToolAction(scythe, 0, tile))
                             return true;
                     }
                     break;
@@ -282,10 +323,10 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
         /// <returns>Returns whether it was harvested.</returns>
         private bool TryHarvestWeeds([NotNullWhen(true)] SObject? weeds, GameLocation location, Vector2 tile, Farmer player, Tool tool)
         {
-            if (this.Config.ClearWeeds && this.IsWeed(weeds))
+            if (this.Config.ClearWeeds && weeds?.IsWeeds() == true)
             {
                 this.UseToolOnTile(tool, tile, player, location); // doesn't do anything to the weed, but sets up for the tool action (e.g. sets last user)
-                weeds.performToolAction(tool, location); // triggers weed drops, but doesn't remove weed
+                weeds.performToolAction(tool); // triggers weed drops, but doesn't remove weed
                 location.removeObject(tile, false);
                 return true;
             }

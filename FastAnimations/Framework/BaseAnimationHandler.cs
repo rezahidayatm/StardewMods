@@ -26,17 +26,11 @@ namespace Pathoschild.Stardew.FastAnimations.Framework
         /*********
         ** Public methods
         *********/
-        /// <summary>Get whether the animation is currently active.</summary>
-        /// <param name="playerAnimationID">The player's current animation ID.</param>
-        public abstract bool IsEnabled(int playerAnimationID);
+        /// <inheritdoc />
+        public abstract bool TryApply(int playerAnimationId);
 
-        /// <summary>Perform any updates needed when the player enters a new location.</summary>
-        /// <param name="location">The new location.</param>
+        /// <inheritdoc />
         public virtual void OnNewLocation(GameLocation location) { }
-
-        /// <summary>Perform any logic needed on update while the animation is active.</summary>
-        /// <param name="playerAnimationID">The player's current animation ID.</param>
-        public abstract void Update(int playerAnimationID);
 
 
         /*********
@@ -62,41 +56,61 @@ namespace Pathoschild.Stardew.FastAnimations.Framework
 
         /// <summary>Apply an animation update for each frame that should be skipped in the current tick.</summary>
         /// <param name="run">Run one animation frame.</param>
-        /// <param name="until">Get whether the animation should stop being skipped.</param>
-        protected void ApplySkips(Action run, Func<bool>? until = null)
+        /// <returns>Returns whether any frames were skipped.</returns>
+        protected bool ApplySkips(Action run)
         {
-            this.ApplySkips(this.GetSkipsThisTick(), run, until);
+            int skips = this.GetSkipsThisTick();
+
+            for (int i = 0; i < skips; i++)
+                run();
+
+            return skips > 0;
         }
 
-        /// <summary>Apply an animation update for each frame that should be skipped.</summary>
-        /// <param name="skips">The number of frames to skip for the current tick.</param>
-        /// <param name="run">Run one animation frame.</param>
-        /// <param name="until">Get whether the animation should stop being skipped.</param>
-        protected void ApplySkips(int skips, Action run, Func<bool>? until = null)
+        /// <summary>Apply an animation update for each frame that should be skipped in the current tick, or until the callback returns false to finish early.</summary>
+        /// <param name="run">Run one animation frame. This can return false to stop skipping frames early.</param>
+        /// <returns>Returns whether any frames were skipped.</returns>
+        protected bool ApplySkipsWhile(Func<bool> run)
         {
+            int skips = this.GetSkipsThisTick();
+
             for (int i = 0; i < skips; i++)
             {
-                if (until?.Invoke() == true)
+                if (!run())
                     break;
-
-                run();
             }
+
+            return skips > 0;
+        }
+
+        /// <summary>Speed up the player by the given multiplier for the current update tick.</summary>
+        /// <returns>Returns whether any frames were skipped.</returns>
+        protected bool SpeedUpPlayer()
+        {
+            return this.ApplySkips(() =>
+                Game1.player.Update(Game1.currentGameTime, Game1.player.currentLocation)
+            );
         }
 
         /// <summary>Speed up the player by the given multiplier for the current update tick.</summary>
         /// <param name="until">Get whether the animation should stop being skipped.</param>
-        protected void SpeedUpPlayer(Func<bool>? until = null)
+        /// <returns>Returns whether any frames were skipped.</returns>
+        protected bool SpeedUpPlayer(Func<bool> until)
         {
-            this.ApplySkips(
-                run: () => Game1.player.Update(Game1.currentGameTime, Game1.player.currentLocation),
-                until
-            );
+            return this.ApplySkipsWhile(() =>
+            {
+                if (until())
+                    return false;
+
+                Game1.player.Update(Game1.currentGameTime, Game1.player.currentLocation);
+                return true;
+            });
         }
 
         /// <summary>Get whether the current player is riding a tractor from Tractor Mod.</summary>
         protected bool IsRidingTractor()
         {
-            return Game1.player?.mount?.modData?.ContainsKey("Pathoschild.TractorMod") == true;
+            return Game1.player?.mount?.modData?.ContainsKey("Pathoschild.TractorMod") ?? false;
         }
     }
 }

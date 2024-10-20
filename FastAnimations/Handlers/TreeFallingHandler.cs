@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
-using Netcode;
 using Pathoschild.Stardew.Common;
 using Pathoschild.Stardew.FastAnimations.Framework;
 using StardewModdingAPI;
@@ -11,15 +10,12 @@ using StardewValley.TerrainFeatures;
 namespace Pathoschild.Stardew.FastAnimations.Handlers
 {
     /// <summary>Handles the falling-tree animation.</summary>
-    /// <remarks>See game logic in <see cref="StardewValley.TerrainFeatures.Tree.tickUpdate"/>.</remarks>
-    internal class TreeFallingHandler : BaseAnimationHandler
+    /// <remarks>See game logic in <see cref="Tree.tickUpdate"/>.</remarks>
+    internal sealed class TreeFallingHandler : BaseAnimationHandler
     {
         /*********
         ** Fields
         *********/
-        /// <summary>Simplifies access to private game code.</summary>
-        private readonly IReflectionHelper Reflection;
-
         /// <summary>The trees in the current location.</summary>
         private Dictionary<Vector2, TerrainFeature> Trees = new();
 
@@ -27,18 +23,50 @@ namespace Pathoschild.Stardew.FastAnimations.Handlers
         /*********
         ** Public methods
         *********/
-        /// <summary>Construct an instance.</summary>
-        /// <param name="multiplier">The animation speed multiplier to apply.</param>
-        /// <param name="reflection">Simplifies access to private game code.</param>
-        public TreeFallingHandler(float multiplier, IReflectionHelper reflection)
+        /// <inheritdoc />
+        public TreeFallingHandler(float multiplier)
             : base(multiplier)
         {
-            this.Reflection = reflection;
+            if (Context.IsWorldReady)
+                this.UpdateTreeCache(Game1.currentLocation);
         }
 
-        /// <summary>Perform any updates needed when the player enters a new location.</summary>
-        /// <param name="location">The new location.</param>
+        /// <inheritdoc />
         public override void OnNewLocation(GameLocation location)
+        {
+            this.UpdateTreeCache(location);
+        }
+
+        /// <inheritdoc />
+        public override bool TryApply(int playerAnimationId)
+        {
+            bool applied = false;
+
+            if (Context.IsWorldReady)
+            {
+                GameTime gameTime = Game1.currentGameTime;
+
+                foreach (TerrainFeature tree in this.GetFallingTrees())
+                {
+                    applied |= this.ApplySkipsWhile(() =>
+                    {
+                        tree.tickUpdate(gameTime);
+
+                        return tree.Location is not null;
+                    });
+                }
+            }
+
+            return applied;
+        }
+
+
+        /*********
+        ** Private methods
+        *********/
+        /// <summary>Update the cached list of trees in the current location.</summary>
+        /// <param name="location">The location to check.</param>
+        private void UpdateTreeCache(GameLocation location)
         {
             this.Trees =
                 (
@@ -61,41 +89,23 @@ namespace Pathoschild.Stardew.FastAnimations.Handlers
                 .ToDictionary(p => p.Key, p => p.Value.Value);
         }
 
-        /// <summary>Get whether the animation is currently active.</summary>
-        /// <param name="playerAnimationID">The player's current animation ID.</param>
-        public override bool IsEnabled(int playerAnimationID)
-        {
-            return
-                Context.IsWorldReady
-                && this.GetFallingTrees().Any();
-        }
-
-        /// <summary>Perform any logic needed on update while the animation is active.</summary>
-        /// <param name="playerAnimationID">The player's current animation ID.</param>
-        public override void Update(int playerAnimationID)
-        {
-            GameTime gameTime = Game1.currentGameTime;
-
-            int skips = this.GetSkipsThisTick();
-            foreach ((Vector2 tile, TerrainFeature tree) in this.GetFallingTrees())
-                this.ApplySkips(skips, () => tree.tickUpdate(gameTime, tile, Game1.currentLocation));
-        }
-
-
-        /*********
-        ** Private methods
-        *********/
         /// <summary>Get all trees in the current location which are currently falling.</summary>
-        private IEnumerable<KeyValuePair<Vector2, TerrainFeature>> GetFallingTrees()
+        private IEnumerable<TerrainFeature> GetFallingTrees()
         {
             Rectangle visibleTiles = TileHelper.GetVisibleArea();
             foreach (KeyValuePair<Vector2, TerrainFeature> pair in this.Trees)
             {
                 if (visibleTiles.Contains((int)pair.Key.X, (int)pair.Key.Y))
                 {
-                    bool isFalling = this.Reflection.GetField<NetBool>(pair.Value, "falling").GetValue().Value;
-                    if (isFalling)
-                        yield return pair;
+                    bool isFalling = pair.Value switch
+                    {
+                        Tree tree => tree.falling.Value,
+                        FruitTree tree => tree.falling.Value,
+                        _ => false
+                    };
+
+                    if (isFalling && pair.Value.Location != null)
+                        yield return pair.Value;
                 }
             }
         }

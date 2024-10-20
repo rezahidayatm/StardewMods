@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Microsoft.Xna.Framework;
 using StardewValley;
 using xTile.Layers;
@@ -21,7 +20,7 @@ namespace Pathoschild.Stardew.Common
         public static IEnumerable<Vector2> GetTiles(this GameLocation? location)
         {
             if (location?.Map?.Layers == null)
-                return Enumerable.Empty<Vector2>();
+                return [];
 
             Layer layer = location.Map.Layers[0];
             return TileHelper.GetTiles(0, 0, layer.LayerWidth, layer.LayerHeight);

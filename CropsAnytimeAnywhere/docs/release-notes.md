@@ -1,6 +1,40 @@
 ﻿[← back to readme](README.md)
 
 # Release notes
+## Upcoming release
+* Updated for Stardew Valley 1.6.9.
+* Added config option to draw fruit trees' seasonal sprites, even if 'grow crops out of season' is enabled.
+* Improved translations. Thanks to celr00 (added Spanish) and moonggae (added Korean)!
+
+## 1.5.1
+Released 29 June 2024 for SMAPI 4.0.7 or later.
+
+* Improved translations. Thanks to MakinDay (added Italian) and weizinai (added Chinese)!
+
+## 1.5.0
+Released 08 June 2024 for SMAPI 4.0.7 or later.
+
+* Added in-game config UI through [Generic Mod Config Menu](https://www.nexusmods.com/stardewvalley/mods/5098).
+* Raised minimum versions to SMAPI 4.0.7 and Stardew Valley 1.6.4.  
+  _This avoids errors due to breaking changes in earlier 1.6 patches._
+* Improved translations. Thanks to mehmetgorkemarslan (added Turkish)!
+
+## 1.4.10
+Released 28 March 2024 for SMAPI 4.0.0 or later.
+
+* Fixed unable to plant crops and trees in some parts of Ginger Island farm.
+* Fixed unable to plant trees in town.
+
+## 1.4.9
+Released 22 March 2024 for SMAPI 4.0.0 or later.
+
+* Fixed planting crops in non-farmable locations in 1.6.
+
+## 1.4.8
+Released 19 March 2024 for SMAPI 4.0.0 or later.
+
+* Updated for Stardew Valley 1.6.
+
 ## 1.4.7
 Released 25 June 2023 for SMAPI 3.14.0 or later.
 

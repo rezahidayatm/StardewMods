@@ -88,9 +88,6 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
         /// <summary>The edit button.</summary>
         protected ClickableTextureComponent EditButton;
 
-        /// <summary>The Y offset to apply relative to <see cref="IClickableMenu.yPositionOnScreen"/> when drawing the top UI elements.</summary>
-        private readonly int TopOffset;
-
         /****
         ** Edit UI
         ****/
@@ -112,9 +109,6 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
         /// <summary>A dropdown which configures how Automate takes items from this chest.</summary>
         private SimpleDropdown<AutomateContainerPreference> EditAutomateFetch;
 
-        /// <summary>A checkbox which configures whether Automate should avoid removing the last item in a stack.</summary>
-        private Checkbox EditAutomatePreventRemovingStacks;
-
         /// <summary>The clickable area which saves the edit form.</summary>
         private ClickableComponent EditSaveButtonArea;
 
@@ -125,7 +119,7 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
         private ClickableTextureComponent EditExitButton;
 
         /// <summary>The textboxes managed by Chests Anywhere.</summary>
-        private IEnumerable<ValidatedTextBox> ManagedTextboxes => new[] { this.EditNameField, this.EditOrderField, this.EditCategoryField };
+        private IEnumerable<ValidatedTextBox> ManagedTextboxes => [this.EditNameField, this.EditOrderField, this.EditCategoryField];
 
 
         /*********
@@ -166,7 +160,7 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
             this.OnChestSelected?.Invoke(chest);
         }
 
-        /// <summary>Release all resources.</summary>
+        /// <inheritdoc cref="IStorageOverlay.Dispose" />
         public override void Dispose()
         {
             this.OnAutomateOptionsChanged = null;
@@ -189,13 +183,11 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
         /// <param name="reflection">Simplifies access to private code.</param>
         /// <param name="showAutomateOptions">Whether to show Automate options.</param>
         /// <param name="keepAlive">Indicates whether to keep the overlay active. If <c>null</c>, the overlay is kept until explicitly disposed.</param>
-        /// <param name="topOffset">The Y offset to apply relative to <see cref="IClickableMenu.yPositionOnScreen"/> when drawing the top UI elements.</param>
-        protected BaseChestOverlay(IClickableMenu menu, ManagedChest chest, ManagedChest[] chests, ModConfig config, ModConfigKeys keys, IModEvents events, IInputHelper input, IReflectionHelper reflection, bool showAutomateOptions, Func<bool> keepAlive, int topOffset = 0)
+        protected BaseChestOverlay(IClickableMenu menu, ManagedChest chest, ManagedChest[] chests, ModConfig config, ModConfigKeys keys, IModEvents events, IInputHelper input, IReflectionHelper reflection, bool showAutomateOptions, Func<bool> keepAlive)
             : base(events, input, reflection, keepAlive, assumeUiMode: true)
         {
             // data
             this.ShowAutomateOptions = showAutomateOptions;
-            this.TopOffset = topOffset;
 
             // menu
             this.Menu = menu;
@@ -210,8 +202,7 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
             this.ReinitializeBaseComponents();
         }
 
-        /// <summary>Draw the overlay to the screen over the UI.</summary>
-        /// <param name="batch">The sprite batch being drawn.</param>
+        /// <inheritdoc />
         protected override void DrawUi(SpriteBatch batch)
         {
             if (this.DrawCount == 0)
@@ -299,11 +290,8 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
                     topOffset += padding;
                     topOffset += batch.DrawTextBlock(Game1.smallFont, I18n.Label_AutomateOptions(), new Vector2(bounds.X + padding, bounds.Y + topOffset), wrapWidth: bounds.Width - bounds.X - padding, bold: true).Y;
 
-                    // checkboxes
-                    topOffset += this.DrawAndPositionCheckbox(batch, font, this.EditAutomatePreventRemovingStacks, bounds.X + padding, bounds.Y + (int)topOffset, I18n.Label_AutomatePreventRemoveStacks()).Y;
-
                     // buttons
-                    DrawButtons(yOffset: this.EditAutomateStorage.Bounds.Height + this.EditAutomateFetch.Bounds.Height + this.EditAutomatePreventRemovingStacks.GetBounds().Height + padding);
+                    DrawButtons(yOffset: this.EditAutomateStorage.Bounds.Height + this.EditAutomateFetch.Bounds.Height + padding);
 
                     // dropdowns
                     this.EditAutomateFetch.Draw(batch, bounds.X + padding, bounds.Y + (int)topOffset + this.EditAutomateStorage.Bounds.Height);
@@ -324,15 +312,13 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
         /****
         ** Event handlers
         ****/
-        /// <summary>The method invoked when the player resizes the game window.</summary>
+        /// <inheritdoc />
         protected override void ReceiveGameWindowResized()
         {
             this.ReinitializeComponents();
         }
 
-        /// <inheritdoc cref="IInputEvents.ButtonsChanged"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IInputEvents.ButtonsChanged" />
         protected override void ReceiveButtonsChanged(object? sender, ButtonsChangedEventArgs e)
         {
             if (!this.IsInitialized)
@@ -392,9 +378,7 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
                 this.InputHelper.Suppress(button);
         }
 
-        /// <summary>The method invoked when the player scrolls the dropdown using the mouse wheel.</summary>
-        /// <param name="amount">The scroll direction.</param>
-        /// <returns>Whether the event has been handled and shouldn't be propagated further.</returns>
+        /// <inheritdoc />
         protected override bool ReceiveScrollWheelAction(int amount)
         {
             if (!this.IsInitialized)
@@ -439,10 +423,7 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
             }
         }
 
-        /// <summary>The method invoked when the player left-clicks.</summary>
-        /// <param name="x">The X-position of the cursor.</param>
-        /// <param name="y">The Y-position of the cursor.</param>
-        /// <returns>Whether the event has been handled and shouldn't be propagated further.</returns>
+        /// <inheritdoc />
         protected override bool ReceiveLeftClick(int x, int y)
         {
             if (!this.IsInitialized)
@@ -463,8 +444,6 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
                         this.EditHideChestField.Toggle();
 
                     // Automate options
-                    else if (this.EditAutomatePreventRemovingStacks.GetBounds().Contains(x, y))
-                        this.EditAutomatePreventRemovingStacks.Toggle();
                     else if (this.EditAutomateStorage.TryClick(x, y) || this.EditAutomateFetch.TryClick(x, y))
                     {
                         // handled internally
@@ -556,10 +535,7 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
             }
         }
 
-        /// <summary>The method invoked when the cursor is hovered.</summary>
-        /// <param name="x">The cursor's X position.</param>
-        /// <param name="y">The cursor's Y position.</param>
-        /// <returns>Whether the event has been handled and shouldn't be propagated further.</returns>
+        /// <inheritdoc />
         protected override bool ReceiveCursorHover(int x, int y)
         {
             if (!this.IsInitialized)
@@ -598,7 +574,6 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
             nameof(BaseChestOverlay.EditCategoryField),
             nameof(BaseChestOverlay.EditOrderField),
             nameof(BaseChestOverlay.EditHideChestField),
-            nameof(BaseChestOverlay.EditAutomatePreventRemovingStacks),
             nameof(BaseChestOverlay.EditAutomateStorage),
             nameof(BaseChestOverlay.EditAutomateFetch),
             nameof(BaseChestOverlay.EditSaveButtonArea),
@@ -607,6 +582,8 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
         )]
         private void ReinitializeBaseComponents()
         {
+            int topOffset = this.GetTopOffset(this.Menu);
+
             Rectangle bounds = new Rectangle(this.Menu.xPositionOnScreen, this.Menu.yPositionOnScreen, this.Menu.width, this.Menu.height);
 
             // category dropdown
@@ -615,7 +592,7 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
                 this.CategoryDropdown = new Dropdown<string>(bounds.Right - Game1.tileSize, bounds.Y, this.Font, this.SelectedCategory, this.Categories, category => category);
 
                 if (Constants.TargetPlatform != GamePlatform.Android)
-                    this.CategoryDropdown.bounds.Y = bounds.Y - this.CategoryDropdown.bounds.Height + this.TopOffset;
+                    this.CategoryDropdown.bounds.Y = bounds.Y - this.CategoryDropdown.bounds.Height + topOffset;
                 this.CategoryDropdown.bounds.X -= this.CategoryDropdown.bounds.Width; // right-align
                 this.CategoryDropdown.ReinitializeComponents();
             }
@@ -628,7 +605,7 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
 
                 if (Constants.TargetPlatform != GamePlatform.Android)
                 {
-                    this.ChestDropdown.bounds.Y = bounds.Y - this.ChestDropdown.bounds.Height + this.TopOffset;
+                    this.ChestDropdown.bounds.Y = bounds.Y - this.ChestDropdown.bounds.Height + topOffset;
                     this.ChestDropdown.ReinitializeComponents();
                 }
             }
@@ -643,28 +620,25 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
 
             // edit form
             int longTextWidth = (int)Game1.smallFont.MeasureString("A sufficiently, reasonably long string").X;
-            this.EditNameField = new ValidatedTextBox(Game1.smallFont, Color.Black, ch => ch != '|', this.Reflection) { Width = longTextWidth };
-            this.EditCategoryField = new ValidatedTextBox(Game1.smallFont, Color.Black, ch => ch != '|', this.Reflection) { Width = longTextWidth };
-            this.EditOrderField = new ValidatedTextBox(Game1.smallFont, Color.Black, char.IsDigit, this.Reflection) { Width = (int)Game1.smallFont.MeasureString("9999999").X };
+            this.EditNameField = new ValidatedTextBox(Game1.smallFont, Color.Black, ch => ch != '|') { Width = longTextWidth };
+            this.EditCategoryField = new ValidatedTextBox(Game1.smallFont, Color.Black, ch => ch != '|') { Width = longTextWidth };
+            this.EditOrderField = new ValidatedTextBox(Game1.smallFont, Color.Black, char.IsDigit) { Width = (int)Game1.smallFont.MeasureString("9999999").X };
             this.EditHideChestField = new Checkbox();
-            this.EditAutomatePreventRemovingStacks = new Checkbox();
             this.EditAutomateStorage = new SimpleDropdown<AutomateContainerPreference>(
                 this.Reflection,
-                options: new[]
-                {
+                options: [
                     new KeyValuePair<AutomateContainerPreference, string>(AutomateContainerPreference.Allow, I18n.Label_AutomateStore()),
                     new KeyValuePair<AutomateContainerPreference, string>(AutomateContainerPreference.Prefer, I18n.Label_AutomateStoreFirst()),
                     new KeyValuePair<AutomateContainerPreference, string>(AutomateContainerPreference.Disable, I18n.Label_AutomateStoreDisabled())
-                }
+                ]
             );
             this.EditAutomateFetch = new SimpleDropdown<AutomateContainerPreference>(
                 this.Reflection,
-                options: new[]
-                {
+                options: [
                     new KeyValuePair<AutomateContainerPreference, string>(AutomateContainerPreference.Allow, I18n.Label_AutomateTake()),
                     new KeyValuePair<AutomateContainerPreference, string>(AutomateContainerPreference.Prefer, I18n.Label_AutomateTakeFirst()),
                     new KeyValuePair<AutomateContainerPreference, string>(AutomateContainerPreference.Disable, I18n.Label_AutomateTakeDisabled())
-                }
+                ]
             );
             this.FillForm();
 
@@ -679,6 +653,13 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
             this.ReinitializeBaseComponents();
         }
 
+        /// <summary>Get the Y pixel offset to apply relative to <see cref="IClickableMenu.yPositionOnScreen"/> when drawing the top UI elements.</summary>
+        /// <param name="menu">The menu for which the UI is being overlaid.</param>
+        protected virtual int GetTopOffset(IClickableMenu menu)
+        {
+            return 0;
+        }
+
         /// <summary>Set the form values to match the underlying chest.</summary>
         private void FillForm()
         {
@@ -686,7 +667,6 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
             this.EditCategoryField.Text = this.Chest.DisplayCategory;
             this.EditOrderField.Text = this.Chest.Order?.ToString() ?? string.Empty;
             this.EditHideChestField.Value = this.Chest.IsIgnored;
-            this.EditAutomatePreventRemovingStacks.Value = this.Chest.PreventRemovingStacks;
             this.EditAutomateStorage.TrySelect(this.Chest.AutomateStoreItems);
             this.EditAutomateFetch.TrySelect(this.Chest.AutomateTakeItems);
         }
@@ -711,14 +691,12 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
             // update chest
             AutomateContainerPreference automateStore = this.EditAutomateStorage.SelectedKey;
             AutomateContainerPreference automateTake = this.EditAutomateFetch.SelectedKey;
-            bool automatePreventRemovingStacks = this.EditAutomatePreventRemovingStacks.Value;
-            bool automateChanged = this.Chest.CanConfigureAutomate && (automatePreventRemovingStacks != this.Chest.PreventRemovingStacks || automateStore != this.Chest.AutomateStoreItems || automateTake != this.Chest.AutomateTakeItems);
+            bool automateChanged = this.Chest.CanConfigureAutomate && (automateStore != this.Chest.AutomateStoreItems || automateTake != this.Chest.AutomateTakeItems);
             this.Chest.Update(
                 name: this.EditNameField.Text,
                 category: this.EditCategoryField.Text,
                 order: order,
                 ignored: this.EditHideChestField.Value,
-                automatePreventRemovingStacks: automatePreventRemovingStacks,
                 automateStoreItems: automateStore,
                 automateTakeItems: automateTake
             );
@@ -833,7 +811,6 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
             this.EditCategoryField.Text = this.Chest.DisplayCategory;
             this.EditOrderField.Text = this.Chest.Order?.ToString() ?? string.Empty;
             this.EditHideChestField.Value = this.Chest.IsIgnored;
-            this.EditAutomatePreventRemovingStacks.Value = this.Chest.PreventRemovingStacks;
             this.EditAutomateStorage.TrySelect(this.Chest.AutomateStoreItems);
             this.EditAutomateFetch.TrySelect(this.Chest.AutomateTakeItems);
 

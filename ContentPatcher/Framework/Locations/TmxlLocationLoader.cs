@@ -31,19 +31,19 @@ namespace ContentPatcher.Framework.Locations
 
         /// <summary>Equivalent to <see cref="SaveGame.locationSerializer"/>.</summary>
         /// <remarks>This is separate to avoid 'changes the save serializer' warnings, since it's only for compatibility with older TMXL locations.</remarks>
-        private readonly Lazy<XmlSerializer> LocationSerializer = new(() => new(typeof(GameLocation), new[]
-        {
+        private readonly Lazy<XmlSerializer> LocationSerializer = new(() => new(typeof(GameLocation), [
             typeof (Tool),
             typeof (Duggy),
             typeof (Ghost),
             typeof (GreenSlime),
-            typeof (LavaCrab),
             typeof (RockCrab),
             typeof (ShadowGuy),
             typeof (Child),
             typeof (Pet),
+#pragma warning disable CS0618 // deliberate to support older saves
             typeof (Dog),
             typeof (Cat),
+#pragma warning restore CS0618
             typeof (Horse),
             typeof (SquidKid),
             typeof (Grub),
@@ -57,7 +57,7 @@ namespace ContentPatcher.Framework.Locations
             typeof (Monster),
             typeof (JunimoHarvester),
             typeof (TerrainFeature)
-        }));
+        ]));
 
 
         /*********

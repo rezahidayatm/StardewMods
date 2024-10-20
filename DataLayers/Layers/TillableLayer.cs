@@ -4,7 +4,6 @@ using Microsoft.Xna.Framework;
 using Pathoschild.Stardew.Common;
 using Pathoschild.Stardew.DataLayers.Framework;
 using StardewValley;
-using StardewValley.Locations;
 using StardewValley.TerrainFeatures;
 using xTile.Dimensions;
 using Rectangle = Microsoft.Xna.Framework.Rectangle;
@@ -35,33 +34,30 @@ namespace Pathoschild.Stardew.DataLayers.Layers
         *********/
         /// <summary>Construct an instance.</summary>
         /// <param name="config">The data layer settings.</param>
-        public TillableLayer(LayerConfig config)
+        /// <param name="colors">The colors to render.</param>
+        public TillableLayer(LayerConfig config, ColorScheme colors)
             : base(I18n.Tillable_Name(), config)
         {
-            this.Legend = new[]
-            {
-                this.Tilled = new LegendEntry(I18n.Keys.Tillable_Tilled, Color.DarkMagenta),
-                this.Tillable = new LegendEntry(I18n.Keys.Tillable_Tillable, Color.Green),
-                this.Occupied = new LegendEntry(I18n.Keys.Tillable_Occupied, Color.Orange),
-                this.NonTillable = new LegendEntry(I18n.Keys.Tillable_NotTillable, Color.Red)
-            };
+            const string layerId = "Tillable";
+
+            this.Legend = [
+                this.Tilled = new LegendEntry(I18n.Keys.Tillable_Tilled, colors.Get(layerId, "Tilled", Color.DarkMagenta)),
+                this.Tillable = new LegendEntry(I18n.Keys.Tillable_Tillable, colors.Get(layerId, "Tillable", Color.Green)),
+                this.Occupied = new LegendEntry(I18n.Keys.Tillable_Occupied, colors.Get(layerId, "Occupied", Color.Orange)),
+                this.NonTillable = new LegendEntry(I18n.Keys.Tillable_NotTillable, colors.Get(layerId, "NotTillable", Color.Red))
+            ];
         }
 
-        /// <summary>Get the updated data layer tiles.</summary>
-        /// <param name="location">The current location.</param>
-        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
-        /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
-        /// <param name="cursorTile">The tile position under the cursor.</param>
-        public override TileGroup[] Update(GameLocation location, in Rectangle visibleArea, in Vector2[] visibleTiles, in Vector2 cursorTile)
+        /// <inheritdoc />
+        public override TileGroup[] Update(ref readonly GameLocation location, ref readonly Rectangle visibleArea, ref readonly IReadOnlySet<Vector2> visibleTiles, ref readonly Vector2 cursorTile)
         {
-            var tiles = this.GetTiles(location, visibleArea.GetTiles());
-            return new[]
-            {
-                new TileGroup(tiles[this.Tilled]),
-                new TileGroup(tiles[this.Tillable], outerBorderColor: this.Tillable.Color),
-                new TileGroup(tiles[this.Occupied]),
-                new TileGroup(tiles[this.NonTillable])
-            };
+            var tiles = this.GetTiles(location, visibleTiles).ToLookup(p => p.Type.Id);
+            return [
+                new TileGroup(tiles[this.Tilled.Id]),
+                new TileGroup(tiles[this.Tillable.Id], outerBorderColor: this.Tillable.Color),
+                new TileGroup(tiles[this.Occupied.Id]),
+                new TileGroup(tiles[this.NonTillable.Id])
+            ];
         }
 
 
@@ -71,10 +67,8 @@ namespace Pathoschild.Stardew.DataLayers.Layers
         /// <summary>Get the updated data layer tiles.</summary>
         /// <param name="location">The current location.</param>
         /// <param name="visibleTiles">The tiles currently visible on the screen.</param>
-        private IDictionary<LegendEntry, List<TileData>> GetTiles(GameLocation location, IEnumerable<Vector2> visibleTiles)
+        private IEnumerable<TileData> GetTiles(GameLocation location, IReadOnlySet<Vector2> visibleTiles)
         {
-            IDictionary<LegendEntry, List<TileData>> tiles = new[] { this.Tillable, this.Tilled, this.Occupied, this.NonTillable }.ToDictionary(p => p, _ => new List<TileData>());
-
             foreach (Vector2 tile in visibleTiles)
             {
                 LegendEntry type;
@@ -87,10 +81,8 @@ namespace Pathoschild.Stardew.DataLayers.Layers
                 else
                     type = this.Tillable;
 
-                tiles[type].Add(new TileData(tile, type));
+                yield return new TileData(tile, type);
             }
-
-            return tiles;
         }
 
         /// <summary>Get whether a tile is blocked due to something it contains.</summary>
@@ -104,7 +96,7 @@ namespace Pathoschild.Stardew.DataLayers.Layers
                 return true;
 
             // objects & large terrain features
-            if (location.objects.ContainsKey(tile) || location.largeTerrainFeatures.Any(p => p.tilePosition.Value == tile))
+            if (location.objects.ContainsKey(tile) || location.largeTerrainFeatures.Any(p => p.Tile == tile))
                 return true;
 
             // non-dirt terrain features
@@ -116,11 +108,8 @@ namespace Pathoschild.Stardew.DataLayers.Layers
             }
 
             // buildings
-            if (location is BuildableGameLocation buildableLocation)
-            {
-                if (buildableLocation.buildings.Any(building => building.occupiesTile(tile)))
-                    return true;
-            }
+            if (location.buildings.Any(building => building.occupiesTile(tile)))
+                return true;
 
             return false;
         }

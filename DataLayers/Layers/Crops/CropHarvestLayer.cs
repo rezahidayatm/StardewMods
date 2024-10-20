@@ -28,32 +28,29 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
         *********/
         /// <summary>Construct an instance.</summary>
         /// <param name="config">The data layer settings.</param>
-        public CropHarvestLayer(LayerConfig config)
+        /// <param name="colors">The colors to render.</param>
+        public CropHarvestLayer(LayerConfig config, ColorScheme colors)
             : base(I18n.CropHarvest_Name(), config)
         {
-            this.Legend = new[]
-            {
-                this.Ready = new LegendEntry(I18n.Keys.CropHarvest_Ready, Color.Green),
-                this.NotReady = new LegendEntry(I18n.Keys.CropHarvest_NotReady, Color.Black),
-                this.NotEnoughTimeOrDead = new LegendEntry(I18n.Keys.CropHarvest_NotEnoughTimeOrDead, Color.Red)
-            };
+            const string layerId = "CropsReadyToHarvest";
+
+            this.Legend = [
+                this.Ready = new LegendEntry(I18n.Keys.CropHarvest_Ready, colors.Get(layerId, "Ready", Color.Green)),
+                this.NotReady = new LegendEntry(I18n.Keys.CropHarvest_NotReady, colors.Get(layerId, "NotReady", Color.Black)),
+                this.NotEnoughTimeOrDead = new LegendEntry(I18n.Keys.CropHarvest_NotEnoughTimeOrDead, colors.Get(layerId, "NotEnoughTimeOrDead", Color.Red))
+            ];
         }
 
-        /// <summary>Get the updated data layer tiles.</summary>
-        /// <param name="location">The current location.</param>
-        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
-        /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
-        /// <param name="cursorTile">The tile position under the cursor.</param>
-        public override TileGroup[] Update(GameLocation location, in Rectangle visibleArea, in Vector2[] visibleTiles, in Vector2 cursorTile)
+        /// <inheritdoc />
+        public override TileGroup[] Update(ref readonly GameLocation location, ref readonly Rectangle visibleArea, ref readonly IReadOnlySet<Vector2> visibleTiles, ref readonly Vector2 cursorTile)
         {
-            TileData[] tiles = this.GetTiles(location, visibleTiles).ToArray();
+            var tiles = this.GetTiles(location, visibleTiles).ToLookup(p => p.Type.Id);
 
-            return new[]
-            {
-                new TileGroup(tiles.Where(p => p.Type.Id == this.Ready.Id), outerBorderColor: this.Ready.Color),
-                new TileGroup(tiles.Where(p => p.Type.Id == this.NotReady.Id)),
-                new TileGroup(tiles.Where(p => p.Type.Id == this.NotEnoughTimeOrDead.Id), outerBorderColor: this.NotEnoughTimeOrDead.Color)
-            };
+            return [
+                new TileGroup(tiles[this.Ready.Id], outerBorderColor: this.Ready.Color),
+                new TileGroup(tiles[this.NotReady.Id]),
+                new TileGroup(tiles[this.NotEnoughTimeOrDead.Id], outerBorderColor: this.NotEnoughTimeOrDead.Color)
+            ];
         }
 
 
@@ -63,7 +60,7 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
         /// <summary>Get all tiles.</summary>
         /// <param name="location">The current location.</param>
         /// <param name="visibleTiles">The tiles currently visible on the screen.</param>
-        private IEnumerable<TileData> GetTiles(GameLocation location, Vector2[] visibleTiles)
+        private IEnumerable<TileData> GetTiles(GameLocation location, IReadOnlySet<Vector2> visibleTiles)
         {
             foreach (Vector2 tile in visibleTiles)
             {
@@ -81,12 +78,15 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
 
                 // yield tile
                 CropDataParser data = new CropDataParser(crop, isPlanted: true);
-                if (data.CanHarvestNow)
-                    yield return new TileData(tile, this.Ready);
-                else if (!location.SeedsIgnoreSeasonsHere() && !data.Seasons.Contains(data.GetNextHarvest().Season))
-                    yield return new TileData(tile, this.NotEnoughTimeOrDead);
-                else
-                    yield return new TileData(tile, this.NotReady);
+                if (data.CropData != null)
+                {
+                    if (data.CanHarvestNow)
+                        yield return new TileData(tile, this.Ready);
+                    else if (!location.SeedsIgnoreSeasonsHere() && !data.Seasons.Contains(data.GetNextHarvest().Season))
+                        yield return new TileData(tile, this.NotEnoughTimeOrDead);
+                    else
+                        yield return new TileData(tile, this.NotReady);
+                }
             }
         }
     }

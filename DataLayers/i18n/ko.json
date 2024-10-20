@@ -1,4 +1,7 @@
 ﻿{
+    /*********
+    ** Data Layers UI
+    *********/
     // accessible
     "accessible.name": "진입가능 여부",
     "accessible.clear": "공간이 빔",
@@ -56,7 +59,7 @@
 
     // machine processing
     "machines.name": "기계 동작 여부",
-    "machines.empty": "빔",
+    "machines.empty": "비어있음",
     "machines.processing": "처리중",
     "machines.finished": "완료됨",
 
@@ -68,5 +71,48 @@
     "tillable.tillable": "경작 가능",
     "tillable.tilled": "경작중",
     "tillable.occupied": "공간 차지중",
-    "tillable.not-tillable": "경작 불가능"
+    "tillable.not-tillable": "경작 불가능",
+
+
+    /*********
+    ** Generic Mod Config Menu UI
+    *********/
+    // section names
+    "config.section.main-options": "메인 옵션",
+    "config.section.main-controls": "메인 단축키",
+    "config.section.layer": "'{{LayerName}}' 레이어", // {{LayerName}} is the layer name set above.
+
+    // main options
+    "config.show-grid.name": "격자 보기",
+    "config.show-grid.desc": "레이어 보기가 열려있을 때 타일 격자를 표시합니다.",
+
+    "config.combine-borders.name": "겹치는 경계선 결합",
+    "config.combine-borders.desc": "같은 색의 두 그룹이 겹칠 때, 각각의 경계선 대신 결합된 가장자리에 하나의 경계선을 그릴지 여부를 설정합니다.",
+
+    "config.color-scheme.name": "색 구성",
+    "config.color-schene.desc": "모든 데이터 레이어에 적용할 색 구성을 변경합니다.",
+    "config.color-schemes.default": "기본 색상",
+
+    // main controls
+    "config.toggle-layer-key.name": "데이터 레이어 활성키",
+    "config.toggle-layer-key.desc": "데이터 레이어를 열고 닫는 단축키 설정",
+
+    "config.prev-layer-key.name": "이전 레이어 단축키",
+    "config.prev-layer-key.desc": "활성화 된 레이어 중 이전 레이어로 이동하는 단축키",
+
+    "config.next-layer-key.name": "다음 레이어 단축키",
+    "config.next-layer-key.desc": "활성화 된 레이어 중 다음 레이어로 이동하는 단축키",
+
+    // data layers
+    "config.layer-enabled.name": "활성화",
+    "config.layer-enabled.desc": "이 레이어를 사용할지 여부",
+
+    "config.layer-update-on-view-change.name": "화면 변경 시 업데이트",
+    "config.layer-update-on-view-change.desc": "'초당 업데이트 수' 설정과 관계 없이 게임 화면에 변화가 생기면 레이어 정보가 업데이트 됩니다.",
+
+    "config.layer-updates-per-second.name": "초당 업데이트 수",
+    "config.layer-updates-per-second.desc": "레이어가 표시될 때 초당 몇 번 업데이트할지 설정합니다. 기본값보다 높게 설정하면 렉이 발생할 수 있습니다. 기본값: {{defaultValue}}.",
+
+    "config.layer-shortcut.name": "단축키",
+    "config.layer-shortcut.desc": "레이어 보기가 열려있을 때 이 레이어로 바로가는 단축키 입니다."
 }

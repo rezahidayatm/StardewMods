@@ -16,14 +16,13 @@ namespace Pathoschild.Stardew.TestMod
         ** Accessors
         *********/
         /// <summary>The unique assets for which <see cref="IAssetLoader.CanLoad{T}"/> was called.</summary>
-        private readonly HashSet<IAssetName> LoadedAssets = new();
+        private readonly HashSet<IAssetName> LoadedAssets = [];
 
 
         /*********
         ** Public methods
         *********/
-        /// <summary>The mod entry point, called after the mod is first loaded.</summary>
-        /// <param name="helper">Provides simplified APIs for writing mods.</param>
+        /// <inheritdoc />
         public override void Entry(IModHelper helper)
         {
             helper.Events.Content.AssetRequested += this.OnAssetRequested;
@@ -34,9 +33,7 @@ namespace Pathoschild.Stardew.TestMod
         /*********
         ** Private methods
         *********/
-        /// <inheritdoc cref="IContentEvents.AssetRequested"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IContentEvents.AssetRequested" />
         private void OnAssetRequested(object? sender, AssetRequestedEventArgs e)
         {
             this.LoadedAssets.Add(e.Name);
@@ -52,9 +49,7 @@ namespace Pathoschild.Stardew.TestMod
             //}
         }
 
-        /// <inheritdoc cref="IInputEvents.ButtonPressed"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IInputEvents.ButtonPressed" />
         private void OnButtonPressed(object? sender, ButtonPressedEventArgs e)
         {
             // print list of loaded assets

@@ -1,6 +1,71 @@
 ﻿[← back to readme](README.md)
 
 # Release notes
+## Upcoming release
+* Updated for Stardew Valley 1.6.9.
+* Improved translations. Thanks to MakinDay (updated Italian) and moonggae (updated Korean)!
+
+## 1.13.3
+Released 07 July 2024 for SMAPI 4.0.7 or later.
+
+* The new _event cutscene_ option is now marked experimental. If you want to use it, you'll need to re-enable it in the options.
+
+## 1.13.2
+Released 29 June 2024 for SMAPI 4.0.7 or later.
+
+* Fixed _event cutscene_ freezing events if they have a `pause` command which runs simultaneously with other event commands.
+* Fixed _event cutscene_ causing errors in some cases.
+* Fixed _fade_ causing festivals to not start when arriving via mine cart.
+* Improved translations. Thanks to MakinDay (updated Italian)!
+
+## 1.13.1
+Released 09 June 2024 for SMAPI 4.0.7 or later.
+
+* Fixed 'collection was modified' errors when speeding up some animations in 1.13.0.
+* Improved translations. Thanks to mitekano23 (updated Japanese)!
+
+## 1.13.0
+Released 08 June 2024 for SMAPI 4.0.7 or later.
+
+* Added support for dialogue box, event cutscene, tailoring, parrot express, and screen fade animations (thanks to weizinai!).
+* Fixed slingshot not firing when sped up in 'hold and release' mode.
+* Fixed _use slingshot_ ignored if _swing tool_ is enabled.
+* Fixed issue where enabling _tree falling_ or _open chest_ in-game would only affect the current location when you left and re-entered it.
+* Raised minimum versions to SMAPI 4.0.7 and Stardew Valley 1.6.4.  
+  _This avoids errors due to breaking changes in earlier 1.6 patches._
+* Internal refactoring & optimized performance.
+* Improved translations. Thanks to MakinDay (updated Italian) and mehmetgorkemarslan (updated Turkish)!
+
+## 1.12.1
+Released 27 May 2024 for SMAPI 4.0.0 or later.
+
+* Fixed open-chest animation for farmhands.
+* Improved translations. Thanks to DARKS0UND (updated Korean) and mitekano23 (updated Japanese)!
+
+## 1.12.0
+Released 22 May 2024 for SMAPI 4.0.0 or later.
+
+* Added support for book, chest, fishing treasure, forge, hold-up-item, prize ticket machine, Stardew Valley Fair wheel spin, and totem animations (thanks to weizinai!).
+* Animations are now also sped up during events and festivals.
+* Improved translations. Thanks to burunduk (updated Ukrainian), MakinDay (updated Italian), mitekano23 (updated Japanese), and weizinai (updated Chinese)!
+
+## 1.11.10
+Released 21 April 2024 for SMAPI 4.0.0 or later.
+
+* Fixed error when speeding up tree-fall animations in some cases.
+* Improved translations. Thanks to mitekano23 (added Japanese)!
+
+## 1.11.9
+Released 26 March 2024 for SMAPI 4.0.0 or later.
+
+* Fixed tool animation speed applied to new strafing feature.
+
+## 1.11.8
+Released 19 March 2024 for SMAPI 4.0.0 or later.
+
+* Updated for Stardew Valley 1.6.
+* Improved translations. Thanks to angel4killer (updated Russian) and EmWhyKay (updated Turkish)!
+
 ## 1.11.7
 Released 27 August 2023 for SMAPI 3.14.0 or later.
 

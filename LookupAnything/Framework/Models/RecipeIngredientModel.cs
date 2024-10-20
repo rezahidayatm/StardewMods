@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using Pathoschild.Stardew.LookupAnything.Framework.Data;
 using StardewValley;
 using SObject = StardewValley.Object;
 
@@ -11,8 +9,14 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Models
         /*********
         ** Accessors
         *********/
-        /// <summary>The unique item IDs that can be used for this ingredient slot.</summary>
-        public ISet<int> PossibleIds { get; }
+        /// <summary>The recipe type.</summary>
+        public RecipeType RecipeType { get; }
+
+        /// <summary>The unique item ID or comma-separated context tags that can be used for this ingredient slot, or <c>null</c> if it's fully based on <see cref="InputContextTags"/>.</summary>
+        public string? InputId { get; }
+
+        /// <summary>The context tags which must be matched for this ingredient slot.</summary>
+        public string[] InputContextTags { get; }
 
         /// <summary>The number required.</summary>
         public int Count { get; }
@@ -21,48 +25,28 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Models
         public SObject.PreserveType? PreserveType { get; }
 
         /// <summary>The <see cref="SObject.preservedParentSheetIndex"/> value to match (or <c>null</c> to ignore it).</summary>
-        public int? PreservedParentSheetIndex { get; }
+        public string? PreservedItemId { get; }
 
 
         /*********
         ** Public methods
         *********/
         /// <summary>Construct an instance.</summary>
+        /// <param name="recipeType">The recipe type.</param>
         /// <param name="inputId">The unique item ID that can be used for this ingredient slot.</param>
         /// <param name="count">The number required.</param>
+        /// <param name="inputContextTags">The context tags which must be matched for this ingredient slot.</param>
         /// <param name="preserveType">The <see cref="SObject.preserve"/> value to match (or <c>null</c> to ignore it).</param>
-        /// <param name="preservedParentSheetIndex">The <see cref="SObject.preservedParentSheetIndex"/> value to match (or <c>null</c> to ignore it).</param>
-        public RecipeIngredientModel(int inputId, int count, SObject.PreserveType? preserveType = null, int? preservedParentSheetIndex = null)
+        /// <param name="preservedItemId">The <see cref="SObject.preservedParentSheetIndex"/> value to match (or <c>null</c> to ignore it).</param>
+        public RecipeIngredientModel(RecipeType recipeType, string? inputId, int count, string[]? inputContextTags = null, SObject.PreserveType? preserveType = null, string? preservedItemId = null)
         {
-            this.PossibleIds = new HashSet<int> { inputId };
+            this.RecipeType = recipeType;
+            this.InputId = inputId;
+            this.InputContextTags = inputContextTags ?? [];
             this.Count = count;
             this.PreserveType = preserveType;
-            this.PreservedParentSheetIndex = preservedParentSheetIndex;
+            this.PreservedItemId = preservedItemId;
         }
-
-        /// <summary>Construct an instance.</summary>
-        /// <param name="possibleIds">The unique item IDs that can be used for this ingredient slot.</param>
-        /// <param name="count">The number required.</param>
-        /// <param name="preserveType">The <see cref="SObject.preserve"/> value to match (or <c>null</c> to ignore it).</param>
-        /// <param name="preservedParentSheetIndex">The <see cref="SObject.preservedParentSheetIndex"/> value to match (or <c>null</c> to ignore it).</param>
-        public RecipeIngredientModel(int[] possibleIds, int count, SObject.PreserveType? preserveType = null, int? preservedParentSheetIndex = null)
-        {
-            this.PossibleIds = new HashSet<int>(possibleIds);
-            this.Count = count;
-            this.PreserveType = preserveType;
-            this.PreservedParentSheetIndex = preservedParentSheetIndex;
-        }
-
-        /// <summary>Construct an instance.</summary>
-        /// <param name="ingredient">The ingredient to copy.</param>
-        public RecipeIngredientModel(MachineRecipeIngredientData ingredient)
-            : this(
-                possibleIds: ingredient.PossibleIds,
-                count: ingredient.Count ?? 1,
-                preserveType: ingredient.PreserveType,
-                preservedParentSheetIndex: ingredient.PreservedParentSheetIndex
-            )
-        { }
 
         /// <summary>Get whether the ingredient matches a given item.</summary>
         /// <param name="item">The item to check.</param>
@@ -74,17 +58,27 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Models
 
             // item fields
             bool matchesId =
-                this.PossibleIds.Contains(item.Category)
-                || (item.ParentSheetIndex >= 0 && this.PossibleIds.Contains(item.ParentSheetIndex)); // ignore special items like fences which have a negative item ID
+                (this.InputId != null || this.InputContextTags.Length > 0)
+                && (
+                    this.InputId == null
+                    || this.InputId == item.Category.ToString()
+                    || this.InputId == item.ItemId
+                    || this.InputId == item.QualifiedItemId
+                    || (this.RecipeType == RecipeType.Crafting && CraftingRecipe.ItemMatchesForCrafting(item, this.InputId)) // special cases like -777 for any wild seed
+                )
+                && (
+                    this.InputContextTags.Length == 0
+                    || ItemContextTagManager.DoAllTagsMatch(this.InputContextTags, item.GetContextTags())
+                );
             if (!matchesId)
                 return false;
 
             // object fields
-            if (this.PreservedParentSheetIndex != null || this.PreserveType != null)
+            if (this.PreservedItemId != null || this.PreserveType != null)
             {
                 if (item is not SObject obj)
                     return false;
-                if (this.PreservedParentSheetIndex != null && this.PreservedParentSheetIndex != obj.preservedParentSheetIndex.Value)
+                if (this.PreservedItemId != null && this.PreservedItemId != obj.preservedParentSheetIndex.Value)
                     return false;
                 if (this.PreserveType != null && this.PreserveType != obj.preserve.Value)
                     return false;

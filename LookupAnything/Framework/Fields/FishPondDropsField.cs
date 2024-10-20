@@ -9,8 +9,7 @@ using Pathoschild.Stardew.LookupAnything.Framework.Data;
 using Pathoschild.Stardew.LookupAnything.Framework.Fields.Models;
 using StardewValley;
 using StardewValley.Buildings;
-using StardewValley.GameData.FishPond;
-using SObject = StardewValley.Object;
+using StardewValley.GameData.FishPonds;
 
 namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
 {
@@ -48,12 +47,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
             this.Preface = preface;
         }
 
-        /// <summary>Draw the value (or return <c>null</c> to render the <see cref="GenericField.Value"/> using the default format).</summary>
-        /// <param name="spriteBatch">The sprite batch being drawn.</param>
-        /// <param name="font">The recommended font.</param>
-        /// <param name="position">The position at which to draw.</param>
-        /// <param name="wrapWidth">The maximum width before which content should be wrapped.</param>
-        /// <returns>Returns the drawn dimensions, or <c>null</c> to draw the <see cref="GenericField.Value"/> using the default format.</returns>
+        /// <inheritdoc />
         public override Vector2? DrawValue(SpriteBatch spriteBatch, SpriteFont font, Vector2 position, float wrapWidth)
         {
             float height = 0;
@@ -155,7 +149,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
             foreach (FishPondDropData drop in gameHelper.GetFishPondDrops(data))
             {
                 bool isUnlocked = currentPopulation >= drop.MinPopulation;
-                SObject item = this.GameHelper.GetObjectBySpriteIndex(drop.ItemID);
+                Item item = ItemRegistry.Create(drop.ItemId);
                 SpriteInfo? sprite = gameHelper.GetSprite(item);
                 yield return new FishPondDrop(drop, item, sprite, isUnlocked);
             }

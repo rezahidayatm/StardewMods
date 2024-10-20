@@ -1,6 +1,59 @@
 ﻿[← back to readme](README.md)
 
 # Release notes
+## Upcoming release
+* Updated for Stardew Valley 1.6.9.
+* Fixed ocean area choosing estuary fish instead of ocean fish.
+* Improved translations. Thanks to DonCami (updated Spanish) and moonggae (updated Korean)!
+
+## 2.5.7
+Released 29 June 2024 for SMAPI 4.0.7 or later.
+
+* Improved translations. Thanks to weizinai (updated Chinese)!
+
+## 2.5.6
+Released 08 June 2024 for SMAPI 4.0.7 or later.
+
+* Added validation error if `assets/data.json` is edited to have invalid data.
+* Raised minimum versions to SMAPI 4.0.7 and Stardew Valley 1.6.4.  
+  _This avoids errors due to breaking changes in earlier 1.6 patches._
+
+## 2.5.5
+Released 22 May 2024 for SMAPI 4.0.0 or later.
+
+* Improved translations. Thanks to burunduk (updated Ukrainian) and mitekano23 (added Japanese)!
+
+## 2.5.4
+Released 21 April 2024 for SMAPI 4.0.0 or later.
+
+* Fixed some missing `NPCBarrier`/`NoFurniture`/`NoSpawn` tile properties to match the vanilla farm maps.
+* Fixed tile overlap when trees are planted below the farm cave.
+
+## 2.5.3
+Released 15 April 2024 for SMAPI 4.0.0 or later.
+
+* Fixed ghost pet bowl left behind if you move the default one.
+* Improved translations. Thanks to Kaian-Campos (added Portuguese)!
+
+## 2.5.2
+Released 04 April 2024 for SMAPI 4.0.0 or later.
+
+* Improved translations. Thanks to Scomar82 (updated German) and Shi974 (updated French)!
+
+## 2.5.1
+Released 21 March 2024 for SMAPI 4.0.0 or later.
+
+* Fixed warp to bus stop in Stardew Valley 1.6.
+
+## 2.5.0
+Released 19 March 2024 for SMAPI 4.0.0 or later.
+
+* Updated for Stardew Valley 1.6.
+* You can now till the campfire wood pile.
+* Various visual improvements to the map (thanks to FlashShifter!).
+* Removed the last custom tiles, so the now is now automatically compatible with recolor mods (thanks to FlashShifter!).
+* Improved translations. Thanks to EmWhyKay (updated Turkish) and MakinDay (updated Italian)!
+
 ## 2.4.10
 Released 01 December 2023 for SMAPI 3.14.0 or later.
 

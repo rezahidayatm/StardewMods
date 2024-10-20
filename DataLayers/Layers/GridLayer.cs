@@ -1,4 +1,4 @@
-using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Pathoschild.Stardew.DataLayers.Framework;
 using StardewValley;
@@ -12,7 +12,7 @@ namespace Pathoschild.Stardew.DataLayers.Layers
         ** Fields
         *********/
         /// <summary>A cached empty tile group list.</summary>
-        private readonly TileGroup[] NoGroups = Array.Empty<TileGroup>();
+        private readonly TileGroup[] NoGroups = [];
 
 
         /*********
@@ -23,16 +23,12 @@ namespace Pathoschild.Stardew.DataLayers.Layers
         public GridLayer(LayerConfig config)
             : base(I18n.Grid_Name(), config)
         {
-            this.Legend = Array.Empty<LegendEntry>();
+            this.Legend = [];
             this.AlwaysShowGrid = true;
         }
 
-        /// <summary>Get the updated data layer tiles.</summary>
-        /// <param name="location">The current location.</param>
-        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
-        /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
-        /// <param name="cursorTile">The tile position under the cursor.</param>
-        public override TileGroup[] Update(GameLocation location, in Rectangle visibleArea, in Vector2[] visibleTiles, in Vector2 cursorTile)
+        /// <inheritdoc />
+        public override TileGroup[] Update(ref readonly GameLocation location, ref readonly Rectangle visibleArea, ref readonly IReadOnlySet<Vector2> visibleTiles, ref readonly Vector2 cursorTile)
         {
             return this.NoGroups;
         }

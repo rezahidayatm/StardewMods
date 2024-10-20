@@ -146,23 +146,16 @@ namespace Pathoschild.Stardew.LookupAnything.Components
         /****
         ** Events
         ****/
-        /// <summary>The method invoked when the player left-clicks on the lookup UI.</summary>
-        /// <param name="x">The X-position of the cursor.</param>
-        /// <param name="y">The Y-position of the cursor.</param>
-        /// <param name="playSound">Whether to enable sound.</param>
+        /// <inheritdoc />
         public override void receiveLeftClick(int x, int y, bool playSound = true)
         {
             this.HandleLeftClick(x, y);
         }
 
-        /// <summary>The method invoked when the player right-clicks on the lookup UI.</summary>
-        /// <param name="x">The X-position of the cursor.</param>
-        /// <param name="y">The Y-position of the cursor.</param>
-        /// <param name="playSound">Whether to enable sound.</param>
+        /// <inheritdoc />
         public override void receiveRightClick(int x, int y, bool playSound = true) { }
 
-        /// <summary>The method invoked when the player scrolls the mouse wheel on the lookup UI.</summary>
-        /// <param name="direction">The scroll direction.</param>
+        /// <inheritdoc />
         public override void receiveScrollWheelAction(int direction)
         {
             if (direction > 0)    // positive number scrolls content up
@@ -171,16 +164,13 @@ namespace Pathoschild.Stardew.LookupAnything.Components
                 this.ScrollDown();
         }
 
-        /// <summary>The method called when the game window changes size.</summary>
-        /// <param name="oldBounds">The former viewport.</param>
-        /// <param name="newBounds">The new viewport.</param>
+        /// <inheritdoc />
         public override void gameWindowSizeChanged(Rectangle oldBounds, Rectangle newBounds)
         {
             this.UpdateLayout();
         }
 
-        /// <summary>The method called when the player presses a controller button.</summary>
-        /// <param name="button">The controller button pressed.</param>
+        /// <inheritdoc />
         public override void receiveGamePadButton(Buttons button)
         {
             switch (button)
@@ -208,8 +198,7 @@ namespace Pathoschild.Stardew.LookupAnything.Components
             }
         }
 
-        /// <summary>Update the menu state if needed.</summary>
-        /// <param name="time">The elapsed game time.</param>
+        /// <inheritdoc />
         public override void update(GameTime time)
         {
             if (this.ExitOnNextTick && this.readyToClose())
@@ -258,11 +247,11 @@ namespace Pathoschild.Stardew.LookupAnything.Components
             // custom link fields
             else
             {
-                foreach (var area in this.LinkFieldAreas)
+                foreach ((ILinkField link, Rectangle area) in this.LinkFieldAreas)
                 {
-                    if (area.Value.Contains(x, y))
+                    if (area.Contains(x, y))
                     {
-                        ISubject? subject = area.Key.GetLinkSubject();
+                        ISubject? subject = link.GetLinkSubject();
                         if (subject != null)
                             this.ShowNewPage(subject);
                         break;
@@ -271,9 +260,8 @@ namespace Pathoschild.Stardew.LookupAnything.Components
             }
         }
 
-        /// <summary>Render the UI.</summary>
-        /// <param name="spriteBatch">The sprite batch being drawn.</param>
-        public override void draw(SpriteBatch spriteBatch)
+        /// <inheritdoc />
+        public override void draw(SpriteBatch b)
         {
             this.Monitor.InterceptErrors("drawing the lookup info", () =>
             {
@@ -285,9 +273,7 @@ namespace Pathoschild.Stardew.LookupAnything.Components
                 // you can look up anyway is the farmer.)
                 if (!this.ValidatedDrawMode)
                 {
-                    IReflectedField<SpriteSortMode> sortModeField =
-                        this.Reflection.GetField<SpriteSortMode>(Game1.spriteBatch, "spriteSortMode", required: false) // XNA
-                        ?? this.Reflection.GetField<SpriteSortMode>(Game1.spriteBatch, "_sortMode"); // MonoGame
+                    IReflectedField<SpriteSortMode> sortModeField = this.Reflection.GetField<SpriteSortMode>(Game1.spriteBatch, "_sortMode");
                     if (sortModeField.GetValue() == SpriteSortMode.Immediate)
                     {
                         this.Monitor.Log("Aborted the lookup because the game's current rendering mode isn't compatible with the mod's UI. This only happens in rare cases (e.g. the Stardew Valley Fair).", LogLevel.Warn);
@@ -323,7 +309,7 @@ namespace Pathoschild.Stardew.LookupAnything.Components
                         : this.height / (float)Sprites.Letter.Sprite.Height;
 
                     backgroundBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointClamp);
-                    backgroundBatch.DrawSprite(Sprites.Letter.Sheet, Sprites.Letter.Sprite, x, y, scale: scale);
+                    backgroundBatch.DrawSprite(Sprites.Letter.Sheet, Sprites.Letter.Sprite, x, y, Sprites.Letter.Sprite.Size, scale: scale);
                     backgroundBatch.End();
                 }
 
@@ -382,15 +368,26 @@ namespace Pathoschild.Stardew.LookupAnything.Components
                                     if (!field.HasValue)
                                         continue;
 
-                                    // draw label & value
+                                    // draw label
                                     Vector2 labelSize = contentBatch.DrawTextBlock(font, field.Label, new Vector2(x + leftOffset + cellPadding, y + topOffset + cellPadding), wrapWidth);
+
+                                    // draw value
                                     Vector2 valuePosition = new Vector2(x + leftOffset + labelWidth + cellPadding * 3, y + topOffset + cellPadding);
-                                    Vector2 valueSize =
-                                        field.DrawValue(contentBatch, font, valuePosition, valueWidth)
-                                        ?? contentBatch.DrawTextBlock(font, field.Value, valuePosition, valueWidth);
-                                    Vector2 rowSize = new Vector2(labelWidth + valueWidth + cellPadding * 4, Math.Max(labelSize.Y, valueSize.Y));
+                                    Vector2 valueSize;
+                                    if (field.ExpandLink is not null)
+                                    {
+                                        valueSize = contentBatch.DrawTextBlock(font, field.ExpandLink.Value, valuePosition, valueWidth);
+                                        this.LinkFieldAreas[field.ExpandLink] = new Rectangle((int)valuePosition.X, (int)valuePosition.Y, (int)valueSize.X, (int)valueSize.Y);
+                                    }
+                                    else
+                                    {
+                                        valueSize =
+                                            field.DrawValue(contentBatch, font, valuePosition, valueWidth)
+                                            ?? contentBatch.DrawTextBlock(font, field.Value, valuePosition, valueWidth);
+                                    }
 
                                     // draw table row
+                                    Vector2 rowSize = new Vector2(labelWidth + valueWidth + cellPadding * 4, Math.Max(labelSize.Y, valueSize.Y));
                                     Color lineColor = Color.Gray;
                                     contentBatch.DrawLine(x + leftOffset, y + topOffset, new Vector2(rowSize.X, tableBorderWidth), lineColor); // top
                                     contentBatch.DrawLine(x + leftOffset, y + topOffset + rowSize.Y, new Vector2(rowSize.X, tableBorderWidth), lineColor); // bottom
@@ -413,9 +410,9 @@ namespace Pathoschild.Stardew.LookupAnything.Components
 
                         // draw scroll icons
                         if (this.MaxScroll > 0 && this.CurrentScroll > 0)
-                            this.ScrollUpButton.draw(spriteBatch);
+                            this.ScrollUpButton.draw(b);
                         if (this.MaxScroll > 0 && this.CurrentScroll < this.MaxScroll)
-                            this.ScrollDownButton.draw(spriteBatch);
+                            this.ScrollDownButton.draw(b);
 
                         // end draw
                         contentBatch.End();
@@ -438,7 +435,7 @@ namespace Pathoschild.Stardew.LookupAnything.Components
             }, this.OnDrawError);
         }
 
-        /// <summary>Clean up after the menu when it's disposed.</summary>
+        /// <inheritdoc />
         public void Dispose()
         {
             this.ContentBlendState.Dispose();
@@ -489,7 +486,7 @@ namespace Pathoschild.Stardew.LookupAnything.Components
             this.Monitor.InterceptErrors("handling an error in the lookup code", () => this.exitThisMenu());
         }
 
-        /// <summary>Perform any cleanup needed when the menu exits.</summary>
+        /// <inheritdoc />
         protected override void cleanupBeforeExit()
         {
             this.CleanupImpl();

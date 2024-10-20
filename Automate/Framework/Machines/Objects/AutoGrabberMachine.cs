@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Xna.Framework;
 using StardewValley;
 using StardewValley.Objects;
@@ -19,7 +20,7 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
         public AutoGrabberMachine(SObject machine, GameLocation location, Vector2 tile)
             : base(machine, location, tile) { }
 
-        /// <summary>Get the machine's processing state.</summary>
+        /// <inheritdoc />
         public override MachineState GetState()
         {
             return this.GetNextOutput() != null
@@ -27,15 +28,13 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
                 : MachineState.Processing;
         }
 
-        /// <summary>Get the output item.</summary>
+        /// <inheritdoc />
         public override ITrackedStack? GetOutput()
         {
             return this.GetTracked(this.GetNextOutput(), onEmpty: this.OnOutputTaken);
         }
 
-        /// <summary>Provide input to the machine.</summary>
-        /// <param name="input">The available items.</param>
-        /// <returns>Returns whether the machine started processing an item.</returns>
+        /// <inheritdoc />
         public override bool SetInput(IStorage input)
         {
             return false;
@@ -45,31 +44,39 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
         /*********
         ** Private methods
         *********/
-        /// <summary>Get the output chest.</summary>
-        private Chest GetOutputChest()
+        /// <summary>Get the output chest, if valid.</summary>
+        /// <param name="chest">The chest that was found, if any.</param>
+        /// <returns>Returns whether an output chest was found.</returns>
+        private bool TryGetOutputChest([NotNullWhen(true)] out Chest? chest)
         {
-            return (Chest)this.Machine.heldObject.Value;
+            chest = this.Machine.heldObject.Value as Chest;
+            return chest != null;
         }
 
         /// <summary>Remove an output item once it's been taken.</summary>
         /// <param name="item">The removed item.</param>
         private void OnOutputTaken(Item item)
         {
-            Chest output = this.GetOutputChest();
-            output.clearNulls();
-            output.items.Remove(item);
-            this.Machine.showNextIndex.Value = !output.isEmpty();
+            if (this.TryGetOutputChest(out Chest? output))
+            {
+                output.clearNulls();
+                output.Items.Remove(item);
+                this.Machine.showNextIndex.Value = !output.isEmpty();
+            }
         }
 
         /// <summary>Get the next output item.</summary>
         private Item? GetNextOutput()
         {
-            foreach (Item item in this.GetOutputChest().items)
+            if (this.TryGetOutputChest(out Chest? output))
             {
-                if (item == null)
-                    continue;
+                foreach (Item item in output.Items)
+                {
+                    if (item == null)
+                        continue;
 
-                return item;
+                    return item;
+                }
             }
 
             return null;

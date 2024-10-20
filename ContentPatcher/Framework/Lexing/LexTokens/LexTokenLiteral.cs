@@ -33,7 +33,7 @@ namespace ContentPatcher.Framework.Lexing.LexTokens
             this.Text = text ?? string.Empty;
         }
 
-        /// <summary>Get a text representation of the lexical token.</summary>
+        /// <inheritdoc cref="ILexToken.ToString" />
         public override string ToString()
         {
             return this.Text;

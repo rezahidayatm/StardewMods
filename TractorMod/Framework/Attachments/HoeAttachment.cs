@@ -19,9 +19,6 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
         /// <summary>The attachment settings.</summary>
         private readonly HoeConfig Config;
 
-        /// <summary>The item ID for an artifact spot.</summary>
-        private const int ArtifactSpotItemID = 590;
-
         /// <summary>The minimum delay before attempting to re-till the same empty dirt tile.</summary>
         private readonly TimeSpan TillDirtDelay = TimeSpan.FromSeconds(1);
 
@@ -32,49 +29,41 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
         /// <summary>Construct an instance.</summary>
         /// <param name="config">The mod configuration.</param>
         /// <param name="modRegistry">Fetches metadata about loaded mods.</param>
-        /// <param name="reflection">Simplifies access to private code.</param>
-        public HoeAttachment(HoeConfig config, IModRegistry modRegistry, IReflectionHelper reflection)
-            : base(modRegistry, reflection)
+        public HoeAttachment(HoeConfig config, IModRegistry modRegistry)
+            : base(modRegistry)
         {
             this.Config = config;
         }
 
-        /// <summary>Get whether the tool is currently enabled.</summary>
-        /// <param name="player">The current player.</param>
-        /// <param name="tool">The tool selected by the player (if any).</param>
-        /// <param name="item">The item selected by the player (if any).</param>
-        /// <param name="location">The current location.</param>
+        /// <inheritdoc />
         public override bool IsEnabled(Farmer player, Tool? tool, Item? item, GameLocation location)
         {
             return
-                (this.Config.TillDirt || this.Config.ClearWeeds || this.Config.DigArtifactSpots)
+                (this.Config.TillDirt || this.Config.ClearWeeds || this.Config.DigArtifactSpots || this.Config.DigSeedSpots)
                 && tool is Hoe;
         }
 
-        /// <summary>Apply the tool to the given tile.</summary>
-        /// <param name="tile">The tile to modify.</param>
-        /// <param name="tileObj">The object on the tile.</param>
-        /// <param name="tileFeature">The feature on the tile.</param>
-        /// <param name="player">The current player.</param>
-        /// <param name="tool">The tool selected by the player (if any).</param>
-        /// <param name="item">The item selected by the player (if any).</param>
-        /// <param name="location">The current location.</param>
+        /// <inheritdoc />
         public override bool Apply(Vector2 tile, SObject? tileObj, TerrainFeature? tileFeature, Farmer player, Tool? tool, Item? item, GameLocation location)
         {
             tool = tool.AssertNotNull();
 
             // clear weeds
-            if (this.Config.ClearWeeds && this.IsWeed(tileObj))
+            if (this.Config.ClearWeeds && tileObj?.IsWeeds() == true)
                 return this.UseToolOnTile(tool, tile, player, location);
 
             // collect artifact spots
-            if (this.Config.DigArtifactSpots && tileObj?.ParentSheetIndex == HoeAttachment.ArtifactSpotItemID)
+            if (this.Config.DigArtifactSpots && tileObj?.QualifiedItemId == SObject.artifactSpotQID)
+                return this.UseToolOnTile(tool, tile, player, location);
+
+            // collect seed spots
+            if (this.Config.DigSeedSpots && tileObj?.QualifiedItemId == $"{ItemRegistry.type_object}SeedSpot")
                 return this.UseToolOnTile(tool, tile, player, location);
 
             // harvest ginger
-            if (this.Config.HarvestGinger && tileFeature is HoeDirt dirt && dirt.crop?.whichForageCrop.Value == Crop.forageCrop_ginger && dirt.crop.hitWithHoe((int)tile.X, (int)tile.Y, location, dirt))
+            if (this.Config.HarvestGinger && tileFeature is HoeDirt dirt && dirt.crop?.whichForageCrop.Value == Crop.forageCrop_ginger.ToString() && dirt.crop.hitWithHoe((int)tile.X, (int)tile.Y, location, dirt))
             {
-                dirt.destroyCrop(tile, showAnimation: false, location);
+                dirt.destroyCrop(showAnimation: false);
                 return true;
             }
 

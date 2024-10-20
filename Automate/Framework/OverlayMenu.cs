@@ -51,8 +51,7 @@ namespace Pathoschild.Stardew.Automate.Framework
         /*********
         ** Protected
         *********/
-        /// <summary>Draw the overlay to the screen under the UI.</summary>
-        /// <param name="spriteBatch">The sprite batch being drawn.</param>
+        /// <inheritdoc />
         [SuppressMessage("ReSharper", "PossibleLossOfFraction", Justification = "Deliberate discarded for conversion to tile coordinates.")]
         protected override void DrawWorld(SpriteBatch spriteBatch)
         {

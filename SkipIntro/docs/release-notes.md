@@ -1,6 +1,30 @@
 ﻿[← back to readme](README.md)
 
 # Release notes
+## Upcoming release
+* Updated for Stardew Valley 1.6.9.
+
+## 1.9.19
+Released 08 June 2024 for SMAPI 4.0.7 or later.
+
+* Raised minimum versions to SMAPI 4.0.7 and Stardew Valley 1.6.4.  
+  _This avoids errors due to breaking changes in earlier 1.6 patches._
+
+## 1.9.18
+Released 27 May 2024 for SMAPI 4.0.0 or later.
+
+* Fixed the audio 'pop' when skipping to the title screen.
+
+## 1.9.17
+Released 22 May 2024 for SMAPI 4.0.0 or later.
+
+* Improved translations. Thanks to mitekano23 (added Japanese)!
+
+## 1.9.16
+Released 19 March 2024 for SMAPI 4.0.0 or later.
+
+* Updated for Stardew Valley 1.6.
+
 ## 1.9.15
 Released 01 December 2023 for SMAPI 3.14.0 or later.
 

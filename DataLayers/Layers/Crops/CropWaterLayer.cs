@@ -25,28 +25,25 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
         *********/
         /// <summary>Construct an instance.</summary>
         /// <param name="config">The data layer settings.</param>
-        public CropWaterLayer(LayerConfig config)
+        /// <param name="colors">The colors to render.</param>
+        public CropWaterLayer(LayerConfig config, ColorScheme colors)
             : base(I18n.CropWater_Name(), config)
         {
-            this.Legend = new[]
-            {
-               this.Watered = new LegendEntry(I18n.Keys.CropWater_Watered, Color.Green),
-               this.Dry = new LegendEntry(I18n.Keys.CropWater_Dry, Color.Red)
-            };
+            const string layerId = "WateredCrops";
+
+            this.Legend = [
+               this.Watered = new LegendEntry(I18n.Keys.CropWater_Watered, colors.Get(layerId, "Watered", Color.Green)),
+               this.Dry = new LegendEntry(I18n.Keys.CropWater_Dry, colors.Get(layerId, "Dry", Color.Red))
+            ];
         }
 
-        /// <summary>Get the updated data layer tiles.</summary>
-        /// <param name="location">The current location.</param>
-        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
-        /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
-        /// <param name="cursorTile">The tile position under the cursor.</param>
-        public override TileGroup[] Update(GameLocation location, in Rectangle visibleArea, in Vector2[] visibleTiles, in Vector2 cursorTile)
+        /// <inheritdoc />
+        public override TileGroup[] Update(ref readonly GameLocation location, ref readonly Rectangle visibleArea, ref readonly IReadOnlySet<Vector2> visibleTiles, ref readonly Vector2 cursorTile)
         {
-            return new[]
-            {
+            return [
                 this.GetGroup(location, visibleTiles, HoeDirt.watered, this.Watered),
                 this.GetGroup(location, visibleTiles, HoeDirt.dry, this.Dry)
-            };
+            ];
         }
 
 
@@ -58,7 +55,7 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
         /// <param name="visibleTiles">The tiles currently visible on the screen.</param>
         /// <param name="state">The watered state to match.</param>
         /// <param name="type">The legend entry for the group.</param>
-        private TileGroup GetGroup(GameLocation location, Vector2[] visibleTiles, int state, LegendEntry type)
+        private TileGroup GetGroup(GameLocation location, IReadOnlySet<Vector2> visibleTiles, int state, LegendEntry type)
         {
             var crops = this
                 .GetCropsByStatus(location, visibleTiles, state)
@@ -70,7 +67,7 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
         /// <param name="location">The current location.</param>
         /// <param name="visibleTiles">The tiles currently visible on the screen.</param>
         /// <param name="state">The watered state to match.</param>
-        private IEnumerable<Vector2> GetCropsByStatus(GameLocation location, Vector2[] visibleTiles, int state)
+        private IEnumerable<Vector2> GetCropsByStatus(GameLocation location, IReadOnlySet<Vector2> visibleTiles, int state)
         {
             foreach (Vector2 tile in visibleTiles)
             {

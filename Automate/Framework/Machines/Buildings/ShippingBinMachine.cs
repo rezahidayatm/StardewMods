@@ -47,7 +47,7 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Buildings
             this.Bin = bin;
         }
 
-        /// <summary>Get the machine's processing state.</summary>
+        /// <inheritdoc />
         public override MachineState GetState()
         {
             if (this.Bin?.isUnderConstruction() == true)
@@ -56,24 +56,22 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Buildings
             return MachineState.Empty; // always accepts items
         }
 
-        /// <summary>Get the output item.</summary>
+        /// <inheritdoc />
         public override ITrackedStack? GetOutput()
         {
             return null; // no output
         }
 
-        /// <summary>Provide input to the machine.</summary>
-        /// <param name="input">The available items.</param>
-        /// <returns>Returns whether the machine started processing an item.</returns>
+        /// <inheritdoc />
         public override bool SetInput(IStorage input)
         {
             // get next item
-            ITrackedStack? tracker = input.GetItems().FirstOrDefault(p => p.Sample is SObject obj && obj.canBeShipped());
+            ITrackedStack? tracker = input.GetItems().FirstOrDefault(p => p.Sample.canBeShipped());
             if (tracker == null)
                 return false;
 
             // ship item
-            SObject item = (SObject)tracker.Take(tracker.Count)!;
+            Item item = tracker.Take(tracker.Count)!;
             var binList = (this.Location as Farm ?? Game1.getFarm()).getShippingBin(Game1.MasterPlayer);
             Utility.addItemToThisInventoryList(item, binList, listMaxSpace: int.MaxValue);
 

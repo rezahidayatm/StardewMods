@@ -5,7 +5,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Pathoschild.Stardew.Common;
 using Pathoschild.Stardew.LookupAnything.Framework.Data;
-using SObject = StardewValley.Object;
+using StardewValley;
 
 namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
 {
@@ -19,7 +19,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
         protected GameHelper GameHelper;
 
         /// <summary>The possible drops.</summary>
-        private readonly Tuple<ItemDropData, SObject, SpriteInfo?>[] Drops;
+        private readonly Tuple<ItemDropData, Item, SpriteInfo?>[] Drops;
 
         /// <summary>The text to display before the list, if any.</summary>
         private readonly string? Preface;
@@ -52,7 +52,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
             this.GameHelper = gameHelper;
             this.Drops = this.GetEntries(drops, gameHelper).ToArray();
             if (sort)
-                this.Drops = this.Drops.OrderByDescending(p => p.Item1.Probability).ThenBy(p => p.Item2.DisplayName).ToArray();
+                this.Drops = [.. this.Drops.OrderByDescending(p => p.Item1.Probability).ThenBy(p => p.Item2.DisplayName)];
 
             this.HasValue = defaultText != null || this.Drops.Any();
             this.FadeNonGuaranteed = fadeNonGuaranteed;
@@ -61,12 +61,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
             this.DefaultText = defaultText;
         }
 
-        /// <summary>Draw the value (or return <c>null</c> to render the <see cref="GenericField.Value"/> using the default format).</summary>
-        /// <param name="spriteBatch">The sprite batch being drawn.</param>
-        /// <param name="font">The recommended font.</param>
-        /// <param name="position">The position at which to draw.</param>
-        /// <param name="wrapWidth">The maximum width before which content should be wrapped.</param>
-        /// <returns>Returns the drawn dimensions, or <c>null</c> to draw the <see cref="GenericField.Value"/> using the default format.</returns>
+        /// <inheritdoc />
         public override Vector2? DrawValue(SpriteBatch spriteBatch, SpriteFont font, Vector2 position, float wrapWidth)
         {
             if (!this.Drops.Any())
@@ -83,7 +78,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
 
             // list drops
             Vector2 iconSize = new(font.MeasureString("ABC").Y);
-            foreach ((ItemDropData drop, SObject item, SpriteInfo? sprite) in this.Drops)
+            foreach ((ItemDropData drop, Item item, SpriteInfo? sprite) in this.Drops)
             {
                 // get data
                 bool isGuaranteed = drop.Probability > .99f;
@@ -105,6 +100,17 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
                 if (shouldCrossOut)
                     spriteBatch.DrawLine(position.X + iconSize.X + 5, position.Y + height + iconSize.Y / 2, new Vector2(textSize.X, 1), this.FadeNonGuaranteed ? Color.Gray : Color.Black);
 
+                // draw conditions
+                if (drop.Conditions != null)
+                {
+                    string conditionText = I18n.Item_RecipesForMachine_Conditions(conditions: HumanReadableConditionParser.Format(drop.Conditions));
+                    height += textSize.Y + 5;
+                    textSize = spriteBatch.DrawTextBlock(font, conditionText, position + new Vector2(iconSize.X + 5, height + 5), wrapWidth);
+
+                    if (shouldCrossOut)
+                        spriteBatch.DrawLine(position.X + iconSize.X + 5, position.Y + height + iconSize.Y / 2, new Vector2(textSize.X, 1), this.FadeNonGuaranteed ? Color.Gray : Color.Black);
+                }
+
                 height += textSize.Y + 5;
             }
 
@@ -119,11 +125,11 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
         /// <summary>Get the internal drop list entries.</summary>
         /// <param name="drops">The possible drops.</param>
         /// <param name="gameHelper">Provides utility methods for interacting with the game code.</param>
-        private IEnumerable<Tuple<ItemDropData, SObject, SpriteInfo?>> GetEntries(IEnumerable<ItemDropData> drops, GameHelper gameHelper)
+        private IEnumerable<Tuple<ItemDropData, Item, SpriteInfo?>> GetEntries(IEnumerable<ItemDropData> drops, GameHelper gameHelper)
         {
             foreach (ItemDropData drop in drops)
             {
-                SObject item = this.GameHelper.GetObjectBySpriteIndex(drop.ItemID);
+                Item item = ItemRegistry.Create(drop.ItemId);
                 SpriteInfo? sprite = gameHelper.GetSprite(item);
                 yield return Tuple.Create(drop, item, sprite);
             }

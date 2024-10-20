@@ -1,6 +1,66 @@
 ﻿[← back to readme](README.md)
 
 # Release notes
+## Upcoming release
+* Updated for Stardew Valley 1.6.9.
+* Added two config options which apply when you press the 'toggle UI' key:
+   - whether it reopens the last chest you selected;
+   - a category name to open by default (if set).
+* The default category for chests now uses the location's display name (if available), instead of its internal name.
+* Improved dropdown positioning to reduce overlap with big chest UI.
+* Improved translations. Thanks to celr00 (updated Spanish), ForgottenZ (updated Chinese), MakinDay (updated Italian), and moonggae (updated Korean)!
+
+## 1.24.1
+Released 01 July 2024 for SMAPI 4.0.7 or later.
+
+* Support for sprinkler attachments is now optional and disabled by default.
+
+## 1.24.0
+Released 29 June 2024 for SMAPI 4.0.7 or later.
+
+* Added support for sprinkler attachments (thanks to Mushymato!).
+
+## 1.23.5
+Released 08 June 2024 for SMAPI 4.0.7 or later.
+
+* Fixed the community center fish tank being accessible through Chests Anywhere.
+* Raised minimum versions to SMAPI 4.0.7 and Stardew Valley 1.6.4.  
+  _This avoids errors due to breaking changes in earlier 1.6 patches._
+* Internal refactoring.
+
+## 1.23.4
+Released 22 May 2024 for SMAPI 4.0.0 or later.
+
+* Improved translations. Thanks to burunduk (updated Ukrainian) and mitekano23 (updated Japanese)!
+
+## 1.23.3
+Released 15 April 2024 for SMAPI 4.0.0 or later.
+
+* Reduced chest dropdown UI overlap over big chest inventory (thanks to LeFauxMatt!).
+
+## 1.23.2
+Released 08 April 2024 for SMAPI 4.0.0 or later.
+
+* Fixed chest options not updating Automate machines immediately when the chest is inside a farm building.
+
+## 1.23.1
+Released 21 March 2024 for SMAPI 4.0.0 or later.
+
+* Fixed auto-grabbers no longer accessible remotely.
+
+## 1.23.0
+Released 19 March 2024 for SMAPI 4.0.0 or later.
+
+* Updated for Stardew Valley 1.6.
+* Removed migration for pre-1.20 chest options.  
+* Fixed misaligned chest UI when the zoom level and UI scale don't match (thanks to SinZ163!).
+* Fixed errors if some config fields are set to null.
+
+**Breaking changes for players:**
+* If you edited a chest's name/options before Chests Anywhere 1.20.0 (December 2020) and haven't loaded the save since
+  then, it will no longer be migrated to the new format. You'll need to re-edit it to set the options you want. That's
+  needed because the migration conflicted with newer Stardew Valley 1.6 features.
+
 ## 1.22.10
 Released 01 December 2023 for SMAPI 3.14.0 or later.
 

@@ -3,13 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Pathoschild.Stardew.Common.Enums;
-using Pathoschild.Stardew.LookupAnything.Framework.Constants;
+using Pathoschild.Stardew.Common;
 using Pathoschild.Stardew.LookupAnything.Framework.DebugFields;
 using Pathoschild.Stardew.LookupAnything.Framework.Fields;
 using StardewValley;
+using StardewValley.GameData.WildTrees;
 using StardewValley.TerrainFeatures;
-using SObject = StardewValley.Object;
 
 namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.TerrainFeatures
 {
@@ -45,12 +44,14 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.TerrainFeatures
             this.Tile = tile;
         }
 
-        /// <summary>Get the data to display for this subject.</summary>
+        /// <inheritdoc />
         /// <remarks>Tree growth algorithm reverse engineered from <see cref="Tree.dayUpdate"/>.</remarks>
         public override IEnumerable<ICustomField> GetData()
         {
             Tree tree = this.Target;
-            GameLocation location = tree.currentLocation;
+            WildTreeData data = tree.GetData();
+            GameLocation location = tree.Location;
+            bool isFertilized = tree.fertilized.Value;
 
             // get growth stage
             WildTreeGrowthStage stage = (WildTreeGrowthStage)Math.Min(tree.growthStage.Value, (int)WildTreeGrowthStage.Tree);
@@ -64,33 +65,52 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.TerrainFeatures
             if (!isFullyGrown)
             {
                 string label = I18n.Tree_NextGrowth();
-                if (location.GetSeasonForLocation() == "winter" && !location.SeedsIgnoreSeasonsHere() && !tree.fertilized.Value)
+                if (!data.GrowsInWinter && location.GetSeason() == Season.Winter && !location.SeedsIgnoreSeasonsHere() && !isFertilized)
                     yield return new GenericField(label, I18n.Tree_NextGrowth_Winter());
-                else if (stage == WildTreeGrowthStage.SmallTree && this.HasAdjacentTrees(this.Tile))
+                else if (stage == WildTreeGrowthStage.Tree - 1 && this.HasAdjacentTrees(this.Tile))
                     yield return new GenericField(label, I18n.Tree_NextGrowth_AdjacentTrees());
                 else
-                    yield return new GenericField(label, I18n.Tree_NextGrowth_Chance(stage: I18n.For(stage + 1), chance: this.GetNormalGrowthChance()));
+                {
+                    double chance = Math.Round((isFertilized ? data.FertilizedGrowthChance : data.GrowthChance) * 100, 2);
+                    yield return new GenericField(label, I18n.Tree_NextGrowth_Chance(stage: I18n.For(stage + 1), chance: chance));
+                }
             }
 
             // get fertilizer
             if (!isFullyGrown)
             {
-                if (!tree.fertilized.Value)
+                if (!isFertilized)
                     yield return new GenericField(I18n.Tree_IsFertilized(), this.Stringify(false));
                 else
                 {
-                    var fertilizer = new SObject(805, 1);
+                    Item fertilizer = ItemRegistry.Create("(O)805");
                     yield return new ItemIconField(this.GameHelper, I18n.Tree_IsFertilized(), fertilizer, this.Codex);
                 }
             }
 
             // get seed
-            if (isFullyGrown)
-                yield return new GenericField(I18n.Tree_HasSeed(), this.Stringify(tree.hasSeed.Value));
+            if (isFullyGrown && !string.IsNullOrWhiteSpace(data.SeedItemId))
+            {
+                string seedName = GameI18n.GetObjectName(data.SeedItemId);
 
+                if (tree.hasSeed.Value)
+                    yield return new ItemIconField(this.GameHelper, I18n.Tree_Seed(), ItemRegistry.Create(data.SeedItemId), this.Codex);
+                else
+                {
+                    List<string> lines = new(2);
+
+                    if (data.SeedOnShakeChance > 0)
+                        lines.Add(I18n.Tree_Seed_ProbabilityDaily(chance: data.SeedOnShakeChance * 100, itemName: seedName));
+                    if (data.SeedOnChopChance > 0)
+                        lines.Add(I18n.Tree_Seed_ProbabilityOnChop(chance: data.SeedOnChopChance * 100, itemName: seedName));
+
+                    if (lines.Any())
+                        yield return new GenericField(I18n.Tree_Seed(), I18n.Tree_Seed_NotReady() + Environment.NewLine + string.Join(Environment.NewLine, lines));
+                }
+            }
         }
 
-        /// <summary>Get the data to display for this subject.</summary>
+        /// <inheritdoc />
         public override IEnumerable<IDebugField> GetDebugFields()
         {
             Tree target = this.Target;
@@ -105,11 +125,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.TerrainFeatures
                 yield return field;
         }
 
-        /// <summary>Draw the subject portrait (if available).</summary>
-        /// <param name="spriteBatch">The sprite batch being drawn.</param>
-        /// <param name="position">The position at which to draw.</param>
-        /// <param name="size">The size of the portrait to draw.</param>
-        /// <returns>Returns <c>true</c> if a portrait was drawn, else <c>false</c>.</returns>
+        /// <inheritdoc />
         public override bool DrawPortrait(SpriteBatch spriteBatch, Vector2 position, Vector2 size)
         {
             this.Target.drawInMenu(spriteBatch, position, Vector2.Zero, 1, 1);
@@ -124,16 +140,21 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.TerrainFeatures
         /// <param name="tree">The tree object.</param>
         private static string GetName(Tree tree)
         {
-            TreeType type = (TreeType)tree.treeType.Value;
+            string type = tree.treeType.Value;
+
             return type switch
             {
-                TreeType.BigMushroom => I18n.Tree_Name_BigMushroom(),
-                TreeType.Mahogany => I18n.Tree_Name_Mahogany(),
-                TreeType.Maple => I18n.Tree_Name_Maple(),
-                TreeType.Oak => I18n.Tree_Name_Oak(),
-                TreeType.Palm => I18n.Tree_Name_Palm(),
-                TreeType.Palm2 => I18n.Tree_Name_Palm(),
-                TreeType.Pine => I18n.Tree_Name_Pine(),
+                Tree.mushroomTree => I18n.Tree_Name_BigMushroom(),
+                Tree.mahoganyTree => I18n.Tree_Name_Mahogany(),
+                Tree.leafyTree => I18n.Tree_Name_Maple(),
+                Tree.bushyTree => I18n.Tree_Name_Oak(),
+                Tree.palmTree => I18n.Tree_Name_Palm(),
+                Tree.palmTree2 => I18n.Tree_Name_Palm(),
+                Tree.pineTree => I18n.Tree_Name_Pine(),
+                Tree.greenRainTreeBushy => I18n.Tree_Name_Mossy(),
+                Tree.greenRainTreeLeafy => I18n.Tree_Name_Mossy(),
+                Tree.greenRainTreeFern => I18n.Tree_Name_Mossy(),
+                Tree.mysticTree => I18n.Tree_Name_Mystic(),
                 _ => I18n.Tree_Name_Unknown()
             };
         }
@@ -148,18 +169,8 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.TerrainFeatures
                 let otherTree = location.terrainFeatures.ContainsKey(adjacentTile)
                     ? location.terrainFeatures[adjacentTile] as Tree
                     : null
-                select otherTree != null && otherTree.growthStage.Value >= (int)WildTreeGrowthStage.SmallTree
+                select otherTree != null && otherTree.growthStage.Value >= (int)(WildTreeGrowthStage.Tree - 1)
             ).Any(p => p);
-        }
-
-        /// <summary>Get the percentage chance the tree will grow, assuming it's in season and not blocked.</summary>
-        /// <remarks>Derived from <see cref="Tree.dayUpdate"/>.</remarks>
-        private int GetNormalGrowthChance()
-        {
-            Tree tree = this.Target;
-            return tree.treeType.Value == Tree.mahoganyTree
-                ? (tree.fertilized.Value ? 60 : 15)
-                : (tree.fertilized.Value ? 100 : 20);
         }
     }
 }

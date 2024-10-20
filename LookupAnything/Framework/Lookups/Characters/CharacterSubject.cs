@@ -9,14 +9,17 @@ using Pathoschild.Stardew.LookupAnything.Framework.Data;
 using Pathoschild.Stardew.LookupAnything.Framework.DebugFields;
 using Pathoschild.Stardew.LookupAnything.Framework.Fields;
 using Pathoschild.Stardew.LookupAnything.Framework.Models;
-using StardewModdingAPI;
 using StardewModdingAPI.Utilities;
 using StardewValley;
+using StardewValley.Buildings;
 using StardewValley.Characters;
+using StardewValley.GameData;
+using StardewValley.GameData.Pets;
 using StardewValley.Locations;
 using StardewValley.Monsters;
 using StardewValley.Network;
 using StardewValley.Objects;
+using StardewValley.TokenizableStrings;
 using SObject = StardewValley.Object;
 
 namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
@@ -36,17 +39,17 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
         /// <summary>Provides subject entries.</summary>
         private readonly ISubjectRegistry Codex;
 
-        /// <summary>Simplifies access to private game code.</summary>
-        private readonly IReflectionHelper Reflection;
-
-        /// <summary>Whether to only show content once the player discovers it.</summary>
-        private readonly bool ProgressionMode;
+        /// <summary>Whether to show gift tastes which the player hasn't learned about in-game yet.</summary>
+        private readonly bool ShowUnknownGiftTastes;
 
         /// <summary>Whether to highlight item gift tastes which haven't been revealed in the NPC profile.</summary>
         private readonly bool HighlightUnrevealedGiftTastes;
 
         /// <summary>Which gift taste levels to show.</summary>
         private readonly ModGiftTasteConfig ShowGiftTastes;
+
+        /// <summary>The configured minimum field values needed before they're auto-collapsed.</summary>
+        private readonly ModCollapseLargeFieldsConfig CollapseFieldsConfig;
 
         /// <summary>Whether to look up the original entity when the game spawns a temporary copy.</summary>
         private readonly bool EnableTargetRedirection;
@@ -63,6 +66,9 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
         /// <summary>Whether the NPC is a magma sprite monster.</summary>
         private readonly bool IsMagmaSprite;
 
+        /// <summary>Whether to disable portraits for this NPC, even if they'd normally be used.</summary>
+        private readonly bool DisablePortraits;
+
 
         /*********
         ** Public methods
@@ -73,21 +79,21 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
         /// <param name="npc">The lookup target.</param>
         /// <param name="type">The NPC type.</param>
         /// <param name="metadata">Provides metadata that's not available from the game data directly.</param>
-        /// <param name="reflectionHelper">Simplifies access to private game code.</param>
-        /// <param name="progressionMode">Whether to only show content once the player discovers it.</param>
+        /// <param name="showUnknownGiftTastes">Whether to show gift tastes which the player hasn't learned about in-game yet.</param>
         /// <param name="highlightUnrevealedGiftTastes">Whether to highlight item gift tastes which haven't been revealed in the NPC profile.</param>
         /// <param name="showGiftTastes">Which gift taste levels to show.</param>
+        /// <param name="collapseFieldsConfig">The configured minimum field values needed before they're auto-collapsed.</param>
         /// <param name="enableTargetRedirection">Whether to look up the original entity when the game spawns a temporary copy.</param>
         /// <param name="showUnownedGifts">Whether to show gift tastes that the player doesn't own somewhere in the world.</param>
         /// <remarks>Reverse engineered from <see cref="NPC"/>.</remarks>
-        public CharacterSubject(ISubjectRegistry codex, GameHelper gameHelper, NPC npc, SubjectType type, Metadata metadata, IReflectionHelper reflectionHelper, bool progressionMode, bool highlightUnrevealedGiftTastes, ModGiftTasteConfig showGiftTastes, bool enableTargetRedirection, bool showUnownedGifts)
+        public CharacterSubject(ISubjectRegistry codex, GameHelper gameHelper, NPC npc, SubjectType type, Metadata metadata, bool showUnknownGiftTastes, bool highlightUnrevealedGiftTastes, ModGiftTasteConfig showGiftTastes, ModCollapseLargeFieldsConfig collapseFieldsConfig, bool enableTargetRedirection, bool showUnownedGifts)
             : base(gameHelper)
         {
             this.Codex = codex;
-            this.Reflection = reflectionHelper;
-            this.ProgressionMode = progressionMode;
+            this.ShowUnknownGiftTastes = showUnknownGiftTastes;
             this.HighlightUnrevealedGiftTastes = highlightUnrevealedGiftTastes;
             this.ShowGiftTastes = showGiftTastes;
+            this.CollapseFieldsConfig = collapseFieldsConfig;
             this.EnableTargetRedirection = enableTargetRedirection;
             this.ShowUnownedGifts = showUnownedGifts;
 
@@ -109,9 +115,11 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
             }
             else
                 this.IsGourmand = type == SubjectType.Villager && npc.Name == "Gourmand" && npc.currentLocation.Name == nameof(IslandFarmCave);
+
+            this.DisablePortraits = CharacterSubject.ShouldDisablePortraits(npc, this.IsGourmand);
         }
 
-        /// <summary>Get the data to display for this subject.</summary>
+        /// <inheritdoc />
         public override IEnumerable<ICustomField> GetData()
         {
             NPC npc = this.Target;
@@ -126,11 +134,11 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
                     _ when this.IsGourmand => this.GetDataForGourmand(),
                     _ => this.GetDataForVillager(npc)
                 },
-                _ => Enumerable.Empty<ICustomField>()
+                _ => []
             };
         }
 
-        /// <summary>Get raw debug data to display for this subject.</summary>
+        /// <inheritdoc />
         public override IEnumerable<IDebugField> GetDebugFields()
         {
             NPC target = this.Target;
@@ -152,11 +160,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
                 yield return field;
         }
 
-        /// <summary>Draw the subject portrait (if available).</summary>
-        /// <param name="spriteBatch">The sprite batch being drawn.</param>
-        /// <param name="position">The position at which to draw.</param>
-        /// <param name="size">The size of the portrait to draw.</param>
-        /// <returns>Returns <c>true</c> if a portrait was drawn, else <c>false</c>.</returns>
+        /// <inheritdoc />
         public override bool DrawPortrait(SpriteBatch spriteBatch, Vector2 position, Vector2 size)
         {
             NPC npc = this.Target;
@@ -170,9 +174,9 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
             }
 
             // use character portrait (most villager NPCs)
-            if (npc.isVillager() && npc.Portrait != null && !this.IsGourmand) // Gourmand uses Professor Snail's portraits
+            if (npc.IsVillager && !this.DisablePortraits)
             {
-                spriteBatch.DrawSprite(npc.Portrait, new Rectangle(0, 0, NPC.portrait_width, NPC.portrait_height), position.X, position.Y, Color.White, size.X / NPC.portrait_width);
+                spriteBatch.DrawSprite(npc.Portrait, new Rectangle(0, 0, NPC.portrait_width, NPC.portrait_height), position.X, position.Y, new Point(NPC.portrait_width, NPC.portrait_height), Color.White, size.X / NPC.portrait_width);
                 return true;
             }
 
@@ -237,13 +241,13 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
                 var checkboxes = new List<KeyValuePair<IFormattedText[], bool>>();
                 for (int i = 0; i < maxQuests; i++)
                 {
-                    int index = cave.IndexForRequest(i);
-                    if (index == -1)
+                    string wantedKey = cave.IndexForRequest(i);
+                    if (!CommonHelper.IsItemId(wantedKey))
                         continue;
 
                     checkboxes.Add(
                         CheckboxListField.Checkbox(
-                            text: this.GameHelper.GetObjectBySpriteIndex(index).DisplayName,
+                            text: ItemRegistry.GetDataOrErrorItem(wantedKey).DisplayName,
                             value: questsDone > i
                         )
                     );
@@ -263,9 +267,9 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
         private IEnumerable<ICustomField> GetDataForMonster(Monster monster)
         {
             // basic info
-            bool canRerollDrops = Game1.player.isWearingRing(Ring.burglarsRing);
+            bool canRerollDrops = Game1.player.isWearingRing(Ring.BurglarsRingId);
 
-            yield return new GenericField(I18n.Monster_Invincible(), I18n.Generic_Seconds(count: this.Reflection.GetField<int>(monster, "invincibleCountdown").GetValue()), hasValue: monster.isInvincible());
+            yield return new GenericField(I18n.Monster_Invincible(), I18n.Generic_Seconds(count: monster.invincibleCountdown), hasValue: monster.isInvincible());
             yield return new PercentageBarField(I18n.Monster_Health(), monster.Health, monster.MaxHealth, Color.Green, Color.Gray, I18n.Generic_PercentRatio(percent: (int)Math.Round((monster.Health / (monster.MaxHealth * 1f) * 100)), value: monster.Health, max: monster.MaxHealth));
             yield return new ItemDropListField(this.GameHelper, I18n.Monster_Drops(), this.GetMonsterDrops(monster), fadeNonGuaranteed: true, crossOutNonGuaranteed: !canRerollDrops, defaultText: I18n.Monster_Drops_Nothing());
             yield return new GenericField(I18n.Monster_Experience(), this.Stringify(monster.ExperienceGained));
@@ -273,14 +277,16 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
             yield return new GenericField(I18n.Monster_Attack(), this.Stringify(monster.DamageToFarmer));
 
             // Adventure Guild quest
-            AdventureGuildQuestData? adventureGuildQuest = this.Metadata.GetAdventurerGuildQuest(monster.Name);
-            if (adventureGuildQuest != null)
+            foreach (MonsterSlayerQuestData questData in DataLoader.MonsterSlayerQuests(Game1.content).Values)
             {
-                int kills = adventureGuildQuest.Targets.Select(p => Game1.stats.getMonstersKilled(p)).Sum();
-                string goalName = GameI18n.GetString($@"Strings\Locations:AdventureGuild_KillList_{adventureGuildQuest.KillListKey}");
+                if (questData.Targets?.Contains(monster.Name) is not true)
+                    continue;
+
+                int kills = questData.Targets.Sum(Game1.stats.getMonstersKilled);
+                string goalName = TokenParser.ParseText(questData.DisplayName);
                 var checkbox = CheckboxListField.Checkbox(
-                    text: I18n.Monster_AdventureGuild_EradicationGoal(name: goalName, count: kills, requiredCount: adventureGuildQuest.RequiredKills),
-                    value: kills >= adventureGuildQuest.RequiredKills
+                    text: I18n.Monster_AdventureGuild_EradicationGoal(name: goalName, count: kills, requiredCount: questData.Count),
+                    value: kills >= questData.Count
                 );
                 yield return new CheckboxListField(I18n.Monster_AdventureGuild(), checkbox);
             }
@@ -291,8 +297,6 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
         /// <remarks>Derived from <see cref="Pet.checkAction"/> and <see cref="Pet.dayUpdate"/>.</remarks>
         private IEnumerable<ICustomField> GetDataForPet(Pet pet)
         {
-            Farm farm = Game1.getFarm();
-
             // friendship
             yield return new CharacterFriendshipField(I18n.Pet_Love(), this.GameHelper.GetFriendshipForPet(Game1.player, pet));
 
@@ -308,7 +312,9 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
             }
 
             // water bowl
-            yield return new GenericField(I18n.Pet_WaterBowl(), farm.petBowlWatered.Value ? I18n.Pet_WaterBowl_Filled() : I18n.Pet_WaterBowl_Empty());
+            PetBowl bowl = pet.GetPetBowl();
+            if (bowl != null)
+                yield return new GenericField(I18n.Pet_WaterBowl(), bowl.watered.Value ? I18n.Pet_WaterBowl_Filled() : I18n.Pet_WaterBowl_Empty());
         }
 
         /// <summary>Get the fields to display for the trash bear.</summary>
@@ -331,9 +337,8 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
             // show item wanted
             if (questsDone < maxQuests)
             {
-                this.Reflection.GetMethod(trashBear, "updateItemWanted").Invoke();
-                int itemWantedIndex = this.Reflection.GetField<int>(trashBear, "itemWantedIndex").GetValue();
-                yield return new ItemIconField(this.GameHelper, I18n.TrashBearOrGourmand_ItemWanted(), this.GameHelper.GetObjectBySpriteIndex(itemWantedIndex), this.Codex);
+                trashBear.updateItemWanted();
+                yield return new ItemIconField(this.GameHelper, I18n.TrashBearOrGourmand_ItemWanted(), ItemRegistry.Create(trashBear.itemWantedIndex), this.Codex);
             }
 
             // show progress
@@ -405,7 +410,10 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
         /// <param name="taste">The gift taste to display.</param>
         private ICustomField GetGiftTasteField(string label, IDictionary<GiftTaste, GiftTasteModel[]> giftTastes, IDictionary<string, bool> ownedItemsCache, GiftTaste taste)
         {
-            return new CharacterGiftTastesField(label, giftTastes, taste, onlyRevealed: this.ProgressionMode, highlightUnrevealed: this.HighlightUnrevealedGiftTastes, onlyOwned: !this.ShowUnownedGifts, ownedItemsCache);
+            var field = new CharacterGiftTastesField(label, giftTastes, taste, showUnknown: this.ShowUnknownGiftTastes, highlightUnrevealed: this.HighlightUnrevealedGiftTastes, onlyOwned: !this.ShowUnownedGifts, ownedItemsCache);
+            if (this.CollapseFieldsConfig.Enabled)
+                field.CollapseIfLengthExceeds(this.CollapseFieldsConfig.NpcGiftTastes, field.TotalItems);
+            return field;
         }
 
         /*****
@@ -427,9 +435,9 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
                 case SubjectType.Monster:
                     return I18n.Type_Monster();
 
-                case SubjectType.Pet:
+                case SubjectType.Pet when npc is Pet pet && Pet.TryGetData(pet.petType.Value, out PetData petData):
                     {
-                        string typeName = GameI18n.GetString($"Strings\\StringsFromCSFiles:Event.cs.{(npc is Cat ? "1242" : "1243")}");
+                        string typeName = TokenParser.ParseText(petData.DisplayName) ?? pet.petType.Value;
                         if (typeName.Length > 1)
                             typeName = char.ToUpperInvariant(typeName[0]) + typeName.Substring(1);
                         return typeName;
@@ -438,6 +446,24 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
                 default:
                     return npc.GetType().Name;
             }
+        }
+
+        /// <summary>Get whether to disable portraits for an NPC, even if they'd normally be shown.</summary>
+        /// <param name="npc">The NPC to check.</param>
+        /// <param name="isGourmand">Whether the NPC is Gourmand in the Fern Islands farm cave.</param>
+        /// <remarks>Most code should use the cached <see cref="DisablePortraits"/> instead.</remarks>
+        private static bool ShouldDisablePortraits(NPC npc, bool isGourmand)
+        {
+            // at the Spirit's Eve festival, the monsters are spawned as villagers
+            if (Game1.CurrentEvent?.id is "festival_fall27" && npc.Name is "Mummy" or "Stone Golem" or "Wilderness Golem")
+                return true;
+
+            // Gourmand uses Professor Snail's portraits
+            if (isGourmand)
+                return true;
+
+            // if the portraits fail to load, this will log the warning once instead of failing on every draw loop
+            return npc.Portrait is null;
         }
 
         /// <summary>Get how much an NPC likes receiving each item as a gift.</summary>
@@ -469,7 +495,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
             {
                 // The player probably changed the game date, so the birthday would be before the
                 // game started. We'll just drop the year number from the output in that case.
-                return new SDate(Game1.dayOfMonth, Game1.currentSeason, 100_000_000)
+                return new SDate(Game1.dayOfMonth, Game1.season, 100_000_000)
                     .AddDays(-daysOld)
                     .ToLocaleString(withYear: false);
             }
@@ -509,19 +535,19 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
             ItemDropData[]? possibleDrops = this.GameHelper.GetMonsterData().FirstOrDefault(p => p.Name == monster.Name)?.Drops;
             if (this.IsHauntedSkull)
                 possibleDrops ??= this.GameHelper.GetMonsterData().FirstOrDefault(p => p.Name == "Lava Bat")?.Drops; // haunted skulls use lava bat data
-            possibleDrops ??= Array.Empty<ItemDropData>();
+            possibleDrops ??= [];
 
             // get actual drops
-            IDictionary<int, List<ItemDropData>> dropsLeft = monster
+            IDictionary<string, List<ItemDropData>> dropsLeft = monster
                 .objectsToDrop
                 .Select(this.GetActualDrop)
-                .GroupBy(p => p.ItemID)
+                .GroupBy(p => p.ItemId)
                 .ToDictionary(group => group.Key, group => group.ToList());
 
             // return possible drops
             foreach (var drop in possibleDrops.OrderByDescending(p => p.Probability))
             {
-                bool isGuaranteed = dropsLeft.TryGetValue(drop.ItemID, out List<ItemDropData>? actualDrops) && actualDrops.Any();
+                bool isGuaranteed = dropsLeft.TryGetValue(drop.ItemId, out List<ItemDropData>? actualDrops) && actualDrops.Any();
                 if (isGuaranteed)
                 {
                     ItemDropData[] matches = actualDrops!.Where(p => p.MinDrop >= drop.MinDrop && p.MaxDrop <= drop.MaxDrop).ToArray();
@@ -533,7 +559,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
                 }
 
                 yield return new ItemDropData(
-                    ItemID: drop.ItemID,
+                    ItemId: drop.ItemId,
                     MinDrop: 1,
                     MaxDrop: drop.MaxDrop,
                     Probability: isGuaranteed ? 1 : drop.Probability
@@ -551,34 +577,34 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
         /// <summary>Get the drop info for a <see cref="Monster.objectsToDrop"/> ID, if it's valid.</summary>
         /// <param name="id">The ID to parse.</param>
         /// <remarks>Derived from <see cref="GameLocation.monsterDrop"/> and the <see cref="Debris"/> constructor.</remarks>
-        private ItemDropData GetActualDrop(int id)
+        private ItemDropData GetActualDrop(string id)
         {
             // basic info
             int minDrop = 1;
             int maxDrop = 1;
 
             // negative ID means the monster will drop 1-3 of the item
-            if (id < 0)
+            if (int.TryParse(id, out int numericId) && numericId < 0)
             {
-                id = -id;
+                id = (-numericId).ToString();
                 maxDrop = 3;
             }
 
             // handle hardcoded ID mappings in Debris constructor
             id = id switch
             {
-                0 => SObject.copper,
-                2 => SObject.iron,
-                4 => SObject.coal,
-                6 => SObject.gold,
-                10 => SObject.iridium,
-                12 => SObject.wood,
-                14 => SObject.stone,
+                "0" => SObject.copper.ToString(),
+                "2" => SObject.iron.ToString(),
+                "4" => SObject.coal.ToString(),
+                "6" => SObject.gold.ToString(),
+                "10" => SObject.iridium.ToString(),
+                "12" => SObject.wood.ToString(),
+                "14" => SObject.stone.ToString(),
                 _ => id
             };
 
             // build model
-            return new ItemDropData(ItemID: id, MinDrop: minDrop, MaxDrop: maxDrop, Probability: 1);
+            return new ItemDropData(ItemId: id, MinDrop: minDrop, MaxDrop: maxDrop, Probability: 1);
         }
     }
 }

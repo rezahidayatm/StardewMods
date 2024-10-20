@@ -14,7 +14,7 @@ namespace ContentPatcher.Framework.Tokens.ValueProviders.ModConvention
         /// <remarks>Default true.</remarks>
         internal delegate bool IsMutable();
 
-        /// <inheritdoc cref="IValueProvider.IsDeterministicForInput"/>
+        /// <inheritdoc cref="IValueProvider.IsDeterministicForInput" />
         /// <remarks>Default false.</remarks>
         internal delegate bool IsDeterministicForInput();
 

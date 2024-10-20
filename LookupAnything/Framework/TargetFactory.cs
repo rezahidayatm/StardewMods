@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Pathoschild.Stardew.Common;
-using Pathoschild.Stardew.Common.Integrations.JsonAssets;
 using Pathoschild.Stardew.LookupAnything.Framework.Constants;
 using Pathoschild.Stardew.LookupAnything.Framework.Lookups;
 using Pathoschild.Stardew.LookupAnything.Framework.Lookups.Buildings;
@@ -40,21 +39,19 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
         /// <param name="reflection">Simplifies access to private game code.</param>
         /// <param name="gameHelper">Provides utility methods for interacting with the game code.</param>
         /// <param name="config">The mod configuration.</param>
-        /// <param name="jsonAssets">The Json Assets API.</param>
         /// <param name="showRawTileInfo">Whether to show raw tile info like tilesheets and tile indexes.</param>
-        public TargetFactory(IReflectionHelper reflection, GameHelper gameHelper, Func<ModConfig> config, JsonAssetsIntegration jsonAssets, Func<bool> showRawTileInfo)
+        public TargetFactory(IReflectionHelper reflection, GameHelper gameHelper, Func<ModConfig> config, Func<bool> showRawTileInfo)
         {
             this.GameHelper = gameHelper;
 
             ISubjectRegistry codex = this;
-            this.LookupProviders = new ILookupProvider[]
-            {
-                new BuildingLookupProvider(reflection, gameHelper, codex),
+            this.LookupProviders = [
+                new BuildingLookupProvider(reflection, gameHelper, config, codex),
                 new CharacterLookupProvider(reflection, gameHelper, config, codex),
-                new ItemLookupProvider(reflection, gameHelper, config, codex, jsonAssets),
-                new TerrainFeatureLookupProvider(reflection, gameHelper, codex, jsonAssets),
+                new ItemLookupProvider(reflection, gameHelper, config, codex),
+                new TerrainFeatureLookupProvider(reflection, gameHelper, codex),
                 new TileLookupProvider(reflection, gameHelper, config, showRawTileInfo)
-            };
+            ];
         }
 
         /****
@@ -107,9 +104,35 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
             ).ToArray();
 
             // choose best match
-            return
-                candidates.FirstOrDefault(p => p.target.SpriteIntersectsPixel(tile, position, p.spriteArea))?.target // sprite pixel under cursor
-                ?? candidates.FirstOrDefault(p => p.isAtTile)?.target; // tile under cursor
+            {
+                ITarget? fallback = null;
+
+                // sprite pixel under cursor
+                foreach (var candidate in candidates)
+                {
+                    try
+                    {
+                        if (candidate.target.SpriteIntersectsPixel(tile, position, candidate.spriteArea))
+                            return candidate.target;
+                    }
+                    catch
+                    {
+                        // if the sprite check fails (e.g. due to an invalid texture), select this target if we don't
+                        // find a more specific one (since it did pass the world area check above)
+                        fallback ??= candidate.target;
+                    }
+                }
+
+                // tile under cursor
+                foreach (var candidate in candidates)
+                {
+                    if (candidate.isAtTile)
+                        return candidate.target;
+                }
+
+                // fallback
+                return fallback;
+            }
         }
 
         /****
@@ -166,7 +189,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework
         /// <param name="player">The player to check.</param>
         private Vector2 GetFacingTile(Farmer player)
         {
-            Vector2 tile = player.getTileLocation();
+            Vector2 tile = player.Tile;
             FacingDirection direction = (FacingDirection)player.FacingDirection;
             return direction switch
             {

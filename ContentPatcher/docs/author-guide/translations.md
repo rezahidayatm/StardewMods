@@ -96,13 +96,16 @@ You can inject the translated text directly into your patches using the `i18n`
 
 ```js
 {
-    "Format": "1.29.0",
+    "Format": "2.3.0",
     "Changes": [
         {
             "Action": "EditData",
-            "Target": "Data/ObjectInformation",
+            "Target": "Data/Objects",
             "Entries": {
-                "Example.ModId_Pufferchick": "Pufferchick/1200/100/Seeds -74/{{i18n: item.name}}/{{i18n: item.description}}////0/Mods\\Example.ModId\\Objects"
+                "{{ModId}}_Pufferchick": {
+                    "DisplayName": "{{i18n: item.name}}",
+                    "Price": 1200,
+                    ...
             }
         }
     ]
@@ -133,7 +136,7 @@ which edits every festival in the game to add dynamic dialogue based on the tran
 
 ```js
 {
-    "Format": "1.29.0",
+    "Format": "2.3.0",
     "Changes": [
         {
             "Action": "EditData",

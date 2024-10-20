@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using ContentPatcher.Framework.Lexing.LexTokens;
 using ContentPatcher.Framework.Tokens;
 using Pathoschild.Stardew.Common.Utilities;
@@ -47,7 +46,7 @@ namespace ContentPatcher.Framework.Conditions
         {
             this.Raw = value;
             this.Value = value ?? string.Empty;
-            this.LexTokens = new ILexToken[] { new LexTokenLiteral(value) };
+            this.LexTokens = [new LexTokenLiteral(value)];
             this.Path = path.ToString();
         }
 
@@ -66,7 +65,7 @@ namespace ContentPatcher.Framework.Conditions
         /// <inheritdoc />
         public IEnumerable<LexTokenToken> GetTokenPlaceholders(bool recursive)
         {
-            return Enumerable.Empty<LexTokenToken>();
+            return [];
         }
 
         /// <inheritdoc />
@@ -77,6 +76,12 @@ namespace ContentPatcher.Framework.Conditions
 
         /// <inheritdoc />
         public bool UsesTokens(IEnumerable<ConditionType> tokens)
+        {
+            return false;
+        }
+
+        /// <inheritdoc />
+        public bool ShouldUpdate()
         {
             return false;
         }

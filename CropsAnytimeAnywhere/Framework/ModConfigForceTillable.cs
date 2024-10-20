@@ -1,4 +1,4 @@
-using System.Text.Json.Serialization;
+using Newtonsoft.Json;
 
 namespace Pathoschild.Stardew.CropsAnytimeAnywhere.Framework
 {
@@ -37,6 +37,11 @@ namespace Pathoschild.Stardew.CropsAnytimeAnywhere.Framework
             this.Stone = stone;
             this.Other = other;
         }
+
+        /// <summary>Construct an instance.</summary>
+        /// <param name="config">The config instance to copy.</param>
+        public ModConfigForceTillable(ModConfigForceTillable config)
+            : this(config.Dirt, config.Grass, config.Stone, config.Other) { }
 
         /// <summary>Whether any of the options are enabled.</summary>
         public bool IsAnyEnabled()

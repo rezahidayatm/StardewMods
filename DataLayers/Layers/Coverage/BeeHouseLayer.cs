@@ -19,7 +19,7 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
         private readonly LegendEntry Covered;
 
         /// <summary>The border color for the bee house under the cursor.</summary>
-        private readonly Color SelectedColor = Color.Blue;
+        private readonly Color SelectedColor;
 
         /// <summary>The maximum number of tiles from the center a bee house can cover.</summary>
         private readonly int MaxRadius = 5;
@@ -33,44 +33,33 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
         *********/
         /// <summary>Construct an instance.</summary>
         /// <param name="config">The data layer settings.</param>
-        public BeeHouseLayer(LayerConfig config)
+        /// <param name="colors">The colors to render.</param>
+        public BeeHouseLayer(LayerConfig config, ColorScheme colors)
             : base(I18n.BeeHouses_Name(), config)
         {
-            this.Legend = new[]
-            {
-                this.Covered = new LegendEntry(I18n.Keys.BeeHouses_Range, Color.Green)
-            };
+            const string layerId = "BeeHouseCoverage";
 
+            this.SelectedColor = colors.Get(layerId, "Selected", Color.Blue);
+            this.Legend = [
+                this.Covered = new LegendEntry(I18n.Keys.BeeHouses_Range, colors.Get(layerId, "Covered", Color.Green))
+            ];
             this.RelativeRange = BeeHouseLayer
                 .GetRelativeCoverage()
                 .ToArray();
         }
 
-        /// <summary>Get the updated data layer tiles.</summary>
-        /// <param name="location">The current location.</param>
-        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
-        /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
-        /// <param name="cursorTile">The tile position under the cursor.</param>
-        public override TileGroup[] Update(GameLocation location, in Rectangle visibleArea, in Vector2[] visibleTiles, in Vector2 cursorTile)
+        /// <inheritdoc />
+        public override TileGroup[] Update(ref readonly GameLocation location, ref readonly Rectangle visibleArea, ref readonly IReadOnlySet<Vector2> visibleTiles, ref readonly Vector2 cursorTile)
         {
-            // get bee houses
-            Vector2[] searchTiles = visibleArea.Expand(this.MaxRadius).GetTiles().ToArray();
-            SObject[] beeHouses =
-                (
-                    from Vector2 tile in searchTiles
-                    where location.objects.ContainsKey(tile)
-                    let beeHouse = location.objects[tile]
-                    where this.IsBeeHouse(beeHouse)
-                    select beeHouse
-                )
-                .ToArray();
-
             // yield coverage
             var groups = new List<TileGroup>();
-            foreach (SObject beeHouse in beeHouses)
+            foreach (Vector2 origin in visibleArea.Expand(this.MaxRadius).GetTiles())
             {
+                if (!location.objects.TryGetValue(origin, out SObject beeHouse) || !this.IsBeeHouse(beeHouse))
+                    continue;
+
                 TileData[] tiles = this
-                    .GetCoverage(location, beeHouse.TileLocation)
+                    .GetCoverage(location, beeHouse.TileLocation, visibleTiles)
                     .Select(pos => new TileData(pos, this.Covered))
                     .ToArray();
 
@@ -82,7 +71,7 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
             if (this.IsBeeHouse(heldObj))
             {
                 var tiles = this
-                    .GetCoverage(location, cursorTile)
+                    .GetCoverage(location, cursorTile, visibleTiles)
                     .Select(pos => new TileData(pos, this.Covered, color: this.Covered.Color * 0.75f));
                 groups.Add(new TileGroup(tiles, outerBorderColor: this.SelectedColor, shouldExport: false));
             }
@@ -104,24 +93,29 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
         /// <summary>Get a bee house tile radius.</summary>
         /// <param name="location">The bee house's location.</param>
         /// <param name="origin">The bee house's tile.</param>
-        /// <remarks>Derived from <see cref="SObject.checkForAction"/> and <see cref="Utility.findCloseFlower(GameLocation, Vector2)"/>.</remarks>
-        private IEnumerable<Vector2> GetCoverage(GameLocation location, Vector2 origin)
+        /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
+        /// <remarks>Derived from <see cref="SObject.checkForAction"/> and <see cref="Utility.findCloseFlower"/>.</remarks>
+        private IEnumerable<Vector2> GetCoverage(GameLocation location, Vector2 origin, IReadOnlySet<Vector2> visibleTiles)
         {
             if (!location.IsOutdoors)
                 yield break; // bee houses are hardcoded to only work outdoors
 
             foreach (Vector2 relativeTile in this.RelativeRange)
-                yield return origin + relativeTile;
+            {
+                Vector2 tile = origin + relativeTile;
+                if (visibleTiles.Contains(tile))
+                    yield return tile;
+            }
         }
 
         /// <summary>Get the relative tiles covered by a bee house.</summary>
-        /// <remarks>Derived from <see cref="Utility.findCloseFlower(GameLocation, Vector2)"/>.</remarks>
+        /// <remarks>Derived from <see cref="Utility.findCloseFlower"/>.</remarks>
         private static IEnumerable<Vector2> GetRelativeCoverage()
         {
             const int range = 5;
 
             Queue<Vector2> queue = new Queue<Vector2>();
-            HashSet<Vector2> visited = new HashSet<Vector2>();
+            HashSet<Vector2> visited = [];
             queue.Enqueue(Vector2.Zero);
             while (queue.Count > 0)
             {

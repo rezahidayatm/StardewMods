@@ -1,8 +1,8 @@
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using ContentPatcher.Framework.Conditions;
+using ContentPatcher.Framework.Migrations;
 using StardewModdingAPI;
-using StardewValley;
+using StardewModdingAPI.Events;
 
 namespace ContentPatcher.Framework.Patches
 {
@@ -28,6 +28,9 @@ namespace ContentPatcher.Framework.Patches
         /// <summary>The content pack which requested the patch.</summary>
         IContentPack ContentPack { get; }
 
+        /// <summary>The aggregate migration which applies for this patch.</summary>
+        IRuntimeMigration Migrator { get; }
+
         /// <summary>The normalized asset key from which to load the local asset (if applicable).</summary>
         string? FromAsset { get; }
 
@@ -37,8 +40,18 @@ namespace ContentPatcher.Framework.Patches
         /// <summary>The normalized asset name to intercept.</summary>
         IAssetName? TargetAsset { get; }
 
+        /// <summary>The locale code in the target asset's name to match (like <c>fr-FR</c> to target <c>Characters/Dialogue/Abigail.fr-FR</c>), or an empty string to match only the base unlocalized asset, or <c>null</c> to match all localized or unlocalized variants of the <see cref="TargetAsset"/>.</summary>
+        string? TargetLocale { get; }
+
+        /// <summary>If the <see cref="TargetAsset"/> was redirected by a runtime migration, the asset name before it was redirected.</summary>
+        public IAssetName? TargetAssetBeforeRedirection { get; }
+
         /// <summary>The raw asset name to intercept, including tokens.</summary>
         ITokenString? RawTargetAsset { get; }
+
+        /// <summary>The priority for this patch when multiple patches apply.</summary>
+        /// <remarks>This is an <see cref="AssetLoadPriority"/> or <see cref="AssetEditPriority"/> value, depending on the patch type.</remarks>
+        int Priority { get; }
 
         /// <summary>When the patch should be updated.</summary>
         UpdateRate UpdateRate { get; }
@@ -48,9 +61,6 @@ namespace ContentPatcher.Framework.Patches
 
         /// <summary>Whether the patch is currently applied to the target asset.</summary>
         bool IsApplied { get; set; }
-
-        /// <summary>The <see cref="Game1.ticks"/> value when this patch last changed due to a context update.</summary>
-        int LastChangedTick { get; }
 
 
         /*********

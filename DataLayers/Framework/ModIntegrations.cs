@@ -1,5 +1,4 @@
 using Pathoschild.Stardew.Common.Integrations.Automate;
-using Pathoschild.Stardew.Common.Integrations.BetterJunimos;
 using Pathoschild.Stardew.Common.Integrations.BetterSprinklers;
 using Pathoschild.Stardew.Common.Integrations.BetterSprinklersPlus;
 using Pathoschild.Stardew.Common.Integrations.LineSprinklers;
@@ -14,13 +13,17 @@ namespace Pathoschild.Stardew.DataLayers.Framework
     internal class ModIntegrations
     {
         /*********
+        ** Fields
+        *********/
+        /// <summary>An API for fetching metadata about loaded mods.</summary>
+        private readonly IModRegistry ModRegistry;
+
+
+        /*********
         ** Accessors
         *********/
         /// <summary>Handles access to the Automate mod.</summary>
         public AutomateIntegration Automate { get; }
-
-        /// <summary>Handles access to the Better Junimos mod.</summary>
-        public BetterJunimosIntegration BetterJunimos { get; }
 
         /// <summary>Handles access to the Better Sprinklers mod.</summary>
         public BetterSprinklersIntegration BetterSprinklers { get; }
@@ -50,14 +53,22 @@ namespace Pathoschild.Stardew.DataLayers.Framework
         /// <param name="reflection">An API for accessing private code.</param>
         public ModIntegrations(IMonitor monitor, IModRegistry modRegistry, IReflectionHelper reflection)
         {
+            this.ModRegistry = modRegistry;
+
             this.Automate = new AutomateIntegration(modRegistry, monitor);
-            this.BetterJunimos = new BetterJunimosIntegration(modRegistry, monitor);
             this.BetterSprinklers = new BetterSprinklersIntegration(modRegistry, monitor);
             this.BetterSprinklersPlus = new BetterSprinklersPlusIntegration(modRegistry, monitor);
             this.LineSprinklers = new LineSprinklersIntegration(modRegistry, monitor);
             this.MultiFertilizer = new MultiFertilizerIntegration(modRegistry, monitor);
             this.PelicanFiber = new PelicanFiberIntegration(modRegistry, reflection, monitor);
             this.SimpleSprinkler = new SimpleSprinklerIntegration(modRegistry, monitor);
+        }
+
+        /// <summary>Get whether a mod is installed.</summary>
+        /// <param name="id">The unique mod ID to check.</param>
+        public bool IsModInstalled(string id)
+        {
+            return this.ModRegistry.IsLoaded(id);
         }
     }
 }

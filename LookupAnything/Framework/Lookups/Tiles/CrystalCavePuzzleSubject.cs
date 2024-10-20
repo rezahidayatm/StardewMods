@@ -13,8 +13,8 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Tiles
         /*********
         ** Fields
         *********/
-        /// <summary>Whether to only show content once the player discovers it.</summary>
-        private readonly bool ProgressionMode;
+        /// <summary>Whether to show puzzle solutions.</summary>
+        private readonly bool ShowPuzzleSolutions;
 
         /// <summary>The ID of the crystal being looked up, if any.</summary>
         private readonly int? CrystalId;
@@ -28,19 +28,19 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Tiles
         /// <param name="location">The game location.</param>
         /// <param name="position">The tile position.</param>
         /// <param name="showRawTileInfo">Whether to show raw tile info like tilesheets and tile indexes.</param>
-        /// <param name="progressionMode">Whether to only show content once the player discovers it.</param>
+        /// <param name="showPuzzleSolutions">Whether to show puzzle solutions.</param>
         /// <param name="crystalId">The ID of the crystal being looked up, if any.</param>
-        public CrystalCavePuzzleSubject(GameHelper gameHelper, GameLocation location, Vector2 position, bool showRawTileInfo, bool progressionMode, int? crystalId)
+        public CrystalCavePuzzleSubject(GameHelper gameHelper, GameLocation location, Vector2 position, bool showRawTileInfo, bool showPuzzleSolutions, int? crystalId)
             : base(gameHelper, location, position, showRawTileInfo)
         {
             this.Name = I18n.Puzzle_IslandCrystalCave_Title();
             this.Description = null;
             this.Type = null;
-            this.ProgressionMode = progressionMode;
+            this.ShowPuzzleSolutions = showPuzzleSolutions;
             this.CrystalId = crystalId;
         }
 
-        /// <summary>Get the data to display for this subject.</summary>
+        /// <inheritdoc />
         public override IEnumerable<ICustomField> GetData()
         {
             // island crystal puzzle
@@ -48,7 +48,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Tiles
                 var cave = (IslandWestCave1)this.Location;
 
                 // crystal ID
-                if (this.CrystalId.HasValue && !this.ProgressionMode)
+                if (this.CrystalId.HasValue && this.ShowPuzzleSolutions)
                     yield return new GenericField(I18n.Puzzle_IslandCrystalCave_CrystalId(), this.Stringify(this.CrystalId.Value));
 
                 // sequence
@@ -56,7 +56,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Tiles
                     string label = I18n.Puzzle_Solution();
                     if (cave.completed.Value)
                         yield return new GenericField(label, I18n.Puzzle_Solution_Solved());
-                    else if (this.ProgressionMode)
+                    else if (!this.ShowPuzzleSolutions)
                         yield return new GenericField(label, new FormattedText(I18n.Puzzle_Solution_Hidden(), Color.Gray));
                     else if (!cave.isActivated.Value)
                         yield return new GenericField(label, I18n.Puzzle_IslandCrystalCave_Solution_NotActivated());

@@ -34,7 +34,7 @@ namespace ContentPatcher.Framework.Lexing.LexTokens
             this.Parts = tokenParts;
         }
 
-        /// <summary>Get a text representation of the lexical token.</summary>
+        /// <inheritdoc cref="ILexToken.ToString" />
         public override string ToString()
         {
             return string.Join("", this.Parts.Select(p => p.ToString()));

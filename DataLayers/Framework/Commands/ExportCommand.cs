@@ -36,11 +36,12 @@ namespace Pathoschild.Stardew.DataLayers.Framework.Commands
         /// <inheritdoc />
         public override string GetDescription()
         {
-            return @"
+            return
+                """
                 data-layers export
                    Usage: data-layers export
                    Exports the current data layer for the entire location to the game folder.
-            ";
+                """;
         }
 
         /// <inheritdoc />
@@ -107,7 +108,10 @@ namespace Pathoschild.Stardew.DataLayers.Framework.Commands
             int height = location.Map.Layers.Max(p => p.LayerHeight);
 
             var visibleArea = new Rectangle(0, 0, width, height);
-            return layer.Update(Game1.currentLocation, visibleArea, visibleArea.GetTiles().ToArray(), new Vector2(0, 0));
+            IReadOnlySet<Vector2> visibleTiles = new HashSet<Vector2>(visibleArea.GetTiles());
+            Vector2 cursorTile = Vector2.Zero;
+
+            return layer.Update(ref location, ref visibleArea, ref visibleTiles, ref cursorTile);
         }
 
         /// <summary>A group of tiles associated with a given legend.</summary>
@@ -116,7 +120,7 @@ namespace Pathoschild.Stardew.DataLayers.Framework.Commands
         private record ExportLegendGroup(string Id, string DisplayName)
         {
             /// <summary>The tiles in the group.</summary>
-            public List<Vector2> Tiles { get; } = new();
+            public List<Vector2> Tiles { get; } = [];
         }
     }
 }

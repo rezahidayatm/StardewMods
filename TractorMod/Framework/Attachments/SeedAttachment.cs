@@ -19,6 +19,9 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
         /// <summary>The attachment settings.</summary>
         private readonly GenericAttachmentConfig Config;
 
+        /// <summary>Simplifies access to private code.</summary>
+        private readonly IReflectionHelper Reflection;
+
 
         /*********
         ** Public methods
@@ -28,16 +31,13 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
         /// <param name="modRegistry">Fetches metadata about loaded mods.</param>
         /// <param name="reflection">Simplifies access to private code.</param>
         public SeedAttachment(GenericAttachmentConfig config, IModRegistry modRegistry, IReflectionHelper reflection)
-            : base(modRegistry, reflection)
+            : base(modRegistry)
         {
             this.Config = config;
+            this.Reflection = reflection;
         }
 
-        /// <summary>Get whether the tool is currently enabled.</summary>
-        /// <param name="player">The current player.</param>
-        /// <param name="tool">The tool selected by the player (if any).</param>
-        /// <param name="item">The item selected by the player (if any).</param>
-        /// <param name="location">The current location.</param>
+        /// <inheritdoc />
         public override bool IsEnabled(Farmer player, Tool? tool, Item? item, GameLocation location)
         {
             return
@@ -45,34 +45,27 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
                 && item is { Category: SObject.SeedsCategory, Stack: > 0 };
         }
 
-        /// <summary>Apply the tool to the given tile.</summary>
-        /// <param name="tile">The tile to modify.</param>
-        /// <param name="tileObj">The object on the tile.</param>
-        /// <param name="tileFeature">The feature on the tile.</param>
-        /// <param name="player">The current player.</param>
-        /// <param name="tool">The tool selected by the player (if any).</param>
-        /// <param name="item">The item selected by the player (if any).</param>
-        /// <param name="location">The current location.</param>
+        /// <inheritdoc />
         public override bool Apply(Vector2 tile, SObject? tileObj, TerrainFeature? tileFeature, Farmer player, Tool? tool, Item? item, GameLocation location)
         {
             if (item is not { Stack: > 0 })
                 return false;
 
             // get dirt
-            if (!this.TryGetHoeDirt(tileFeature, tileObj, out HoeDirt? dirt, out bool dirtCoveredByObj, out _) || dirt.crop != null)
+            if (!this.TryGetHoeDirt(tileFeature, tileObj, out HoeDirt? dirt, out bool dirtCoveredByObj, out IndoorPot? pot) || dirt.crop != null || pot?.bush.Value is not null)
                 return false;
 
             // ignore if there's a giant crop, meteorite, etc covering the tile
-            if (dirtCoveredByObj || this.HasResourceClumpCoveringTile(location, tile))
+            if (dirtCoveredByObj || this.HasResourceClumpCoveringTile(location, tile, this.Reflection))
                 return false;
 
             // sow seeds
-            bool sowed = dirt.plant(item.ParentSheetIndex, (int)tile.X, (int)tile.Y, player, false, location);
+            bool sowed = dirt.plant(item.ItemId, player, false);
             if (sowed)
             {
                 this.ConsumeItem(player, item);
 
-                if (this.TryGetEnricher(location, tile, out Chest? enricher, out Item? fertilizer) && dirt.plant(fertilizer.ParentSheetIndex, (int)tile.X, (int)tile.Y, player, true, location))
+                if (this.TryGetEnricher(location, tile, out Chest? enricher, out Item? fertilizer) && dirt.plant(fertilizer.ItemId, player, true))
                     this.ConsumeItem(enricher, fertilizer);
             }
             return sowed;
@@ -107,11 +100,11 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
             {
                 if (
                     sprinkler.IsSprinkler()
-                    && sprinkler.heldObject.Value is { ParentSheetIndex: 913 } enricherObj
+                    && sprinkler.heldObject.Value is { QualifiedItemId: "(O)913" } enricherObj
                     && enricherObj.heldObject.Value is Chest enricher
                     && sprinkler.IsInSprinklerRangeBroadphase(tile)
                     && sprinkler.GetSprinklerTiles().Contains(tile)
-                    && enricher.items.FirstOrDefault() is { Category: SObject.fertilizerCategory } fertilizer
+                    && enricher.Items.FirstOrDefault() is { Category: SObject.fertilizerCategory } fertilizer
                 )
                 {
                     return (enricher, fertilizer);

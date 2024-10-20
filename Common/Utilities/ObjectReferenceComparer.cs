@@ -11,17 +11,13 @@ namespace Pathoschild.Stardew.Common.Utilities
         /*********
         ** Public methods
         *********/
-        /// <summary>Determines whether the specified objects are equal.</summary>
-        /// <returns>true if the specified objects are equal; otherwise, false.</returns>
-        /// <param name="x">The first object to compare.</param>
-        /// <param name="y">The second object to compare.</param>
+        /// <inheritdoc />
         public bool Equals(T? x, T? y)
         {
             return object.ReferenceEquals(x, y);
         }
 
-        /// <summary>Get a hash code for the specified object.</summary>
-        /// <param name="obj">The value.</param>
+        /// <inheritdoc />
         [SuppressMessage("MicrosoftCodeAnalysisCorrectness", "RS1024:Compare symbols correctly", Justification = "Comparing by object reference is intended.")]
         public int GetHashCode(T obj)
         {

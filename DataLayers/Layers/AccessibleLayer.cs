@@ -1,13 +1,12 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using Microsoft.Xna.Framework;
 using Pathoschild.Stardew.DataLayers.Framework;
 using StardewValley;
 using StardewValley.Buildings;
+using StardewValley.Extensions;
 using StardewValley.Locations;
 using xTile.Dimensions;
-using xTile.ObjectModel;
 using xTile.Tiles;
 using Rectangle = Microsoft.Xna.Framework.Rectangle;
 
@@ -34,10 +33,10 @@ namespace Pathoschild.Stardew.DataLayers.Layers
         /// <summary>The action tile property values which trigger a warp.</summary>
         /// <remarks>See remarks on <see cref="IsWarp"/>.</remarks>
         [SuppressMessage("ReSharper", "StringLiteralTypo", Justification = "These are game values.")]
-        private readonly HashSet<string> WarpActions = new() { "EnterSewer", "LockedDoorWarp", "Mine", "Theater_Entrance", "Warp", "WarpCommunityCenter", "WarpGreenhouse", "WarpMensLocker", "WarpWomensLocker", "WizardHatch" };
+        private readonly HashSet<string> WarpActions = ["EnterSewer", "LockedDoorWarp", "Mine", "Theater_Entrance", "Warp", "WarpCommunityCenter", "WarpGreenhouse", "WarpMensLocker", "WarpWomensLocker", "WizardHatch"];
 
         /// <summary>The touch action tile property values which trigger a warp.</summary>
-        private readonly HashSet<string> TouchWarpActions = new() { "Door", "MagicWarp", "Warp" };
+        private readonly HashSet<string> TouchWarpActions = ["Door", "MagicWarp", "Warp"];
 
 
         /*********
@@ -45,56 +44,95 @@ namespace Pathoschild.Stardew.DataLayers.Layers
         *********/
         /// <summary>Construct an instance.</summary>
         /// <param name="config">The data layer settings.</param>
-        public AccessibleLayer(LayerConfig config)
+        /// <param name="colors">The colors to render.</param>
+        public AccessibleLayer(LayerConfig config, ColorScheme colors)
             : base(I18n.Accessible_Name(), config)
         {
-            this.Legend = new[]
-            {
-                this.Clear = new LegendEntry(I18n.Keys.Accessible_Clear, Color.Green),
-                this.Occupied = new LegendEntry(I18n.Keys.Accessible_Occupied, I18n.Accessible_Occupied(), Color.Orange),
-                this.Impassable = new LegendEntry(I18n.Keys.Accessible_Impassable, I18n.Accessible_Impassable(), Color.Red),
-                this.Warp = new LegendEntry(I18n.Keys.Accessible_Warp, I18n.Accessible_Warp(), Color.Blue)
-            };
+            const string layerId = "Accessible";
+
+            this.Legend = [
+                this.Clear = new LegendEntry(I18n.Keys.Accessible_Clear, colors.Get(layerId, "Clear", Color.Green)),
+                this.Occupied = new LegendEntry(I18n.Keys.Accessible_Occupied, I18n.Accessible_Occupied(), colors.Get(layerId, "Occupied", Color.Orange)),
+                this.Impassable = new LegendEntry(I18n.Keys.Accessible_Impassable, I18n.Accessible_Impassable(), colors.Get(layerId, "Impassable", Color.Red)),
+                this.Warp = new LegendEntry(I18n.Keys.Accessible_Warp, I18n.Accessible_Warp(), colors.Get(layerId, "Warp", Color.Blue))
+            ];
         }
 
-        /// <summary>Get the updated data layer tiles.</summary>
-        /// <param name="location">The current location.</param>
-        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
-        /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
-        /// <param name="cursorTile">The tile position under the cursor.</param>
-        public override TileGroup[] Update(GameLocation location, in Rectangle visibleArea, in Vector2[] visibleTiles, in Vector2 cursorTile)
+        /// <inheritdoc />
+        public override TileGroup[] Update(ref readonly GameLocation location, ref readonly Rectangle visibleArea, ref readonly IReadOnlySet<Vector2> visibleTiles, ref readonly Vector2 cursorTile)
         {
-            TileData[] tiles = this.GetTiles(location, visibleTiles).ToArray();
-            TileData[] passableTiles = tiles.Where(p => p.Type.Id == this.Clear.Id).ToArray();
+            List<TileData> passableTiles = new();
+            List<TileData> warpTiles = new();
+            List<TileData> otherTiles = new();
 
-            return new[]
+            foreach (TileData tile in this.GetTiles(location, visibleTiles))
             {
+                switch (tile.Type.Id)
+                {
+                    case I18n.Keys.Accessible_Clear:
+                        passableTiles.Add(tile);
+                        break;
+
+                    case I18n.Keys.Accessible_Warp:
+                        warpTiles.Add(this.AdjustWarpTileIfOffScreen(tile));
+                        break;
+
+                    default:
+                        otherTiles.Add(tile);
+                        break;
+                }
+            }
+
+            return [
                 new TileGroup(passableTiles, outerBorderColor: this.Clear.Color),
-                new TileGroup(tiles.Except(passableTiles))
-            };
+                new TileGroup(warpTiles, outerBorderColor: this.Clear.Color),
+                new TileGroup(otherTiles)
+            ];
         }
 
 
         /*********
         ** Private methods
         *********/
+        /// <summary>Get a warp tile with a draw offset applied to keep it visible if it's at an off-screen position.</summary>
+        /// <param name="tile">The tile to adjust.</param>
+        private TileData AdjustWarpTileIfOffScreen(TileData tile)
+        {
+            int offsetAmount = Game1.tileSize / 3;
+
+            Vector2 pixelPos = tile.TilePosition * Game1.tileSize;
+
+            int offsetX = 0;
+            if (pixelPos.X < Game1.viewport.X)
+                offsetX = offsetAmount;
+            else if (pixelPos.X >= Game1.viewport.X + Game1.viewport.Width)
+                offsetX = -offsetAmount;
+
+            int offsetY = 0;
+            if (pixelPos.Y < Game1.viewport.Y)
+                offsetY = offsetAmount;
+            else if (pixelPos.Y >= Game1.viewport.Y + Game1.viewport.Height)
+                offsetY = -offsetAmount;
+
+            return offsetX != 0 || offsetY != 0
+                ? new TileData(tile.TilePosition, tile.Type, tile.Color, new Point(offsetX, offsetY))
+                : tile;
+        }
+
         /// <summary>Get the updated data layer tiles.</summary>
         /// <param name="location">The current location.</param>
         /// <param name="visibleTiles">The tiles currently visible on the screen.</param>
-        private IEnumerable<TileData> GetTiles(GameLocation location, IEnumerable<Vector2> visibleTiles)
+        private IEnumerable<TileData> GetTiles(GameLocation location, IReadOnlySet<Vector2> visibleTiles)
         {
             // get building warps
-            HashSet<Vector2> buildingDoors = new HashSet<Vector2>();
-            if (location is BuildableGameLocation buildableLocation)
+            HashSet<Vector2> buildingDoors = [];
+            foreach (Building building in location.buildings)
             {
-                foreach (Building building in buildableLocation.buildings)
-                {
-                    if (building.indoors.Value == null || (building.humanDoor.X < 0 && building.humanDoor.Y < 0))
-                        continue;
+                if (!building.HasIndoors() || (building.humanDoor.X < 0 && building.humanDoor.Y < 0))
+                    continue;
 
-                    buildingDoors.Add(new Vector2(building.humanDoor.X + building.tileX.Value, building.humanDoor.Y + building.tileY.Value));
-                    buildingDoors.Add(new Vector2(building.humanDoor.X + building.tileX.Value, building.humanDoor.Y + building.tileY.Value - 1));
-                }
+                buildingDoors.Add(new Vector2(building.humanDoor.X + building.tileX.Value, building.humanDoor.Y + building.tileY.Value));
+                buildingDoors.Add(new Vector2(building.humanDoor.X + building.tileX.Value, building.humanDoor.Y + building.tileY.Value - 1));
             }
 
             // get tile data
@@ -107,8 +145,8 @@ namespace Pathoschild.Stardew.DataLayers.Layers
                 LegendEntry type;
                 if (this.IsWarp(location, tile, tilePixels, buildingDoors))
                     type = this.Warp;
-                else if (this.IsPassable(location, tile, tilePixels))
-                    type = this.IsOccupied(location, tile, tilePixels) ? this.Occupied : this.Clear;
+                else if (location.isTilePassable(tile))
+                    type = location.IsTileBlockedBy(tile, ignorePassables: CollisionMask.All) ? this.Occupied : this.Clear;
                 else
                     type = this.Impassable;
 
@@ -122,7 +160,7 @@ namespace Pathoschild.Stardew.DataLayers.Layers
         /// <param name="tile">The tile to check.</param>
         /// <param name="tilePixels">The tile area in pixels.</param>
         /// <param name="buildingDoors">The tile positions for farm building doors in the current location.</param>
-        /// <remarks>Derived from <see cref="GameLocation.isCollidingWithWarp"/>, <see cref="GameLocation.performAction"/>, and <see cref="GameLocation.performTouchAction"/>.</remarks>
+        /// <remarks>Derived from <see cref="GameLocation.isCollidingWithWarp"/>, <see cref="GameLocation.performAction(string[],Farmer,Location)"/>, and <see cref="GameLocation.performTouchAction(string[],Vector2)"/>.</remarks>
         private bool IsWarp(GameLocation location, Vector2 tile, Rectangle tilePixels, HashSet<Vector2> buildingDoors)
         {
             // check farm building doors
@@ -131,12 +169,12 @@ namespace Pathoschild.Stardew.DataLayers.Layers
 
             // check tile actions
             Tile buildingTile = location.map.GetLayer("Buildings").PickTile(new Location(tilePixels.X, tilePixels.Y), Game1.viewport.Size);
-            if (buildingTile != null && buildingTile.Properties.TryGetValue("Action", out PropertyValue? action) && this.WarpActions.Contains(action.ToString().Split(' ')[0]))
+            if (buildingTile != null && buildingTile.Properties.TryGetValue("Action", out string? action) && this.WarpActions.Contains(action.Split(' ')[0]))
                 return true;
 
             // check tile touch actions
             Tile backTile = location.map.GetLayer("Back").PickTile(new Location(tilePixels.X, tilePixels.Y), Game1.viewport.Size);
-            if (backTile != null && backTile.Properties.TryGetValue("TouchAction", out PropertyValue? touchAction) && this.TouchWarpActions.Contains(touchAction.ToString().Split(' ')[0]))
+            if (backTile != null && backTile.Properties.TryGetValue("TouchAction", out string? touchAction) && this.TouchWarpActions.Contains(touchAction.Split(' ')[0]))
                 return true;
 
             // check map warps
@@ -147,67 +185,6 @@ namespace Pathoschild.Stardew.DataLayers.Layers
             const int ladderID = 173, shaftID = 174;
             if (location is MineShaft && buildingTile is { TileIndex: ladderID or shaftID } && buildingTile.TileSheet.Id == "mine")
                 return true;
-
-            return false;
-        }
-
-        /// <summary>Get whether a tile is passable.</summary>
-        /// <param name="location">The current location.</param>
-        /// <param name="tile">The tile to check.</param>
-        /// <param name="tilePixels">The tile area in pixels.</param>
-        /// <remarks>Derived from <see cref="Farmer.MovePosition"/>, <see cref="GameLocation.isCollidingPosition(Rectangle,xTile.Dimensions.Rectangle,bool)"/>, <see cref="GameLocation.isTilePassable(xTile.Dimensions.Location,xTile.Dimensions.Rectangle)"/>, and <see cref="Fence"/>.</remarks>
-        private bool IsPassable(GameLocation location, Vector2 tile, Rectangle tilePixels)
-        {
-            // check layer properties
-            if (location.isTilePassable(new Location((int)tile.X, (int)tile.Y), Game1.viewport))
-                return true;
-
-            // allow bridges
-            if (location.doesTileHaveProperty((int)tile.X, (int)tile.Y, "Passable", "Buildings") != null)
-            {
-                Tile backTile = location.map.GetLayer("Back").PickTile(new Location(tilePixels.X, tilePixels.Y), Game1.viewport.Size);
-                if (backTile == null || !backTile.TileIndexProperties.TryGetValue("Passable", out PropertyValue? value) || value != "F")
-                    return true;
-            }
-
-            return false;
-        }
-
-        /// <summary>Get whether a tile is blocked due to something it contains.</summary>
-        /// <param name="location">The current location.</param>
-        /// <param name="tile">The tile to check.</param>
-        /// <param name="tilePixels">The tile area in pixels.</param>
-        /// <remarks>Derived from <see cref="GameLocation.isCollidingPosition(Rectangle,xTile.Dimensions.Rectangle,bool)"/> and <see cref="Farm.isCollidingPosition(Rectangle,xTile.Dimensions.Rectangle,bool,int,bool,Character,bool,bool,bool)"/>.</remarks>
-        private bool IsOccupied(GameLocation location, Vector2 tile, Rectangle tilePixels)
-        {
-            // show open gate as passable
-            if (location.objects.TryGetValue(tile, out Object obj) && obj is Fence fence && fence.isGate.Value && fence.gatePosition.Value == Fence.gateOpenedPosition)
-                return false;
-
-            // check for objects, characters, or terrain features
-            if (location.isTileOccupiedIgnoreFloors(tile))
-                return true;
-
-            // buildings
-            if (location is BuildableGameLocation buildableLocation)
-            {
-                foreach (Building building in buildableLocation.buildings)
-                {
-                    if (building.occupiesTile(tile))
-                        return true;
-                }
-            }
-
-            // large terrain features
-            if (location.largeTerrainFeatures.Any(p => p.getBoundingBox().Intersects(tilePixels)))
-                return true;
-
-            // resource clumps
-            if (location is Farm farm)
-            {
-                if (farm.resourceClumps.Any(p => p.getBoundingBox(p.tile.Value).Intersects(tilePixels)))
-                    return true;
-            }
 
             return false;
         }

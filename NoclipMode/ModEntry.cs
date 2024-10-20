@@ -26,8 +26,7 @@ namespace Pathoschild.Stardew.NoclipMode
         /*********
         ** Public methods
         *********/
-        /// <summary>The mod entry point, called after the mod is first loaded.</summary>
-        /// <param name="helper">Provides simplified APIs for writing mods.</param>
+        /// <inheritdoc />
         public override void Entry(IModHelper helper)
         {
             CommonHelper.RemoveObsoleteFiles(this, "NoclipMode.pdb"); // removed in 1.3.8
@@ -45,9 +44,7 @@ namespace Pathoschild.Stardew.NoclipMode
         /*********
         ** Private methods
         *********/
-        /// <inheritdoc cref="IGameLoopEvents.GameLaunched"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IGameLoopEvents.GameLaunched" />
         private void OnGameLaunched(object? sender, GameLaunchedEventArgs e)
         {
             // add Generic Mod Config Menu integration
@@ -61,9 +58,7 @@ namespace Pathoschild.Stardew.NoclipMode
             ).Register();
         }
 
-        /// <inheritdoc cref="IInputEvents.ButtonsChanged"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IInputEvents.ButtonsChanged" />
         private void OnButtonsChanged(object? sender, ButtonsChangedEventArgs e)
         {
             if (this.CanToggle() && this.ToggleKey.JustPressed())

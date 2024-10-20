@@ -1,6 +1,131 @@
 ﻿[← back to readme](README.md)
 
 # Release notes
+## Upcoming release
+* Updated for Stardew Valley 1.6.9.
+* `CrabPot` instances with a custom item ID are now ignored by Automate, to allow for integrations (thanks to zombifier!).
+* Improved translations. Thanks to celr00 (updated Spanish) and moonggae (updated Korean)!
+
+## 2.2.5
+Released 07 July 2024 for SMAPI 4.0.7 or later.
+
+* Fixed error if another mod creates a broken auto-grabber.
+
+## 2.2.4
+Released 29 June 2024 for SMAPI 4.0.7 or later.
+
+* Fixed config UI not showing custom machines added through Content Patcher.
+* Fixed crab pots always being assigned to the main player (so they get the XP). This now only happens for unassigned crab pots.
+* Fixed feed hoppers inside buildings no longer collecting hay from chests.
+* Fixed support for modded chests with custom `SpecialChestType` values.
+* Renamed 'Feed Hopper' in config UI to 'Hay Hopper and Silo' for clarity.
+* Improved translations. Thanks to bl205vn (added Vietnamese) and martin66789 (updated Hungarian)!
+
+## 2.2.3
+Released 08 June 2024 for SMAPI 4.0.7 or later.
+
+* Raised minimum versions to SMAPI 4.0.7 and Stardew Valley 1.6.4.  
+  _This avoids errors due to breaking changes in earlier 1.6 patches._
+* Internal refactoring.
+* Improved translations. Thanks to mehmetgorkemarslan (updated Turkish)!
+
+## 2.2.2
+Released 25 May 2024 for SMAPI 4.0.0 or later.
+
+* If a machine crashes when checking input, it's now paused for 30 seconds and no longer blocks running other machines in the group.
+
+## 2.2.1
+Released 24 May 2024 for SMAPI 4.0.0 or later.
+
+* Workbenches are no longer connectors by default, to avoid confusion.
+* Fixed error automating some trees in 2.2.0.
+
+## 2.2.0
+Released 24 May 2024 for SMAPI 4.0.0 or later.
+
+* Added support for custom tree drops from the new `Data/WildTrees` asset.
+* Fixed maple trees no longer outputting hazelnuts.
+* Fixed silos and feed hoppers outside the farm not being automated.
+
+## 2.1.0
+Released 22 May 2024 for SMAPI 4.0.0 or later.
+
+* Added support for custom building rules in the game's new `Data/Buildings` asset.
+* Opening a chest will now pause any connected machines, to reduce the chance that items are lost due to inventory edit conflicts.
+* Fixed support for custom trash cans outside the town map.
+* Fixed trash can tracking for pre-1.6 town map mods.
+* Fixed machines grabbing incubated eggs before they hatch.
+* Fixed Art o' Crabbing book's bonus not applied to automated crab pots.
+* Fixed crab pots not always applying the player's professions and bonuses.
+* Fixed bushes in pots being collected twice.
+* Improved translations. Thanks to burunduk (updated Ukrainian), CaranudLapin (updated French), Curotar (updated Russian), and Nana-Nord (updated Spanish)!
+
+## 2.0.7
+Released 15 April 2024 for SMAPI 4.0.0 or later.
+
+* Fixed Ginger Island shipping bin being automated before it's unlocked.
+* Fixed Automate getting the wrong item from custom bushes (thanks to LeFauxMatt!).
+* Improved translations. Thanks to Jualko (updated German), Kaian-Campos (updated Portuguese), and MakinDay (updated Italian)!
+
+## 2.0.6
+Released 08 April 2024 for SMAPI 4.0.0 or later.
+
+* Added support for multiple machines per tile. For example, Automate can now simultaneously collect moss/seeds and run a tapper on the same tree.
+* Set minimum game version to 1.6.3 to avoid confusing 'no longer compatible' message.
+* Fixed buildings sometimes not automated if there's flooring under them.
+* Fixed machine names not translated in Generic Mod Config Menu UI.
+* Fixed typo in `automate help` output.
+* Improved translations. Thanks to mc-kaishixiaxue (updated Chinese)!
+
+## 2.0.5
+Released 07 April 2024 for SMAPI 4.0.0 or later.
+
+* Automate now ignores raisins in Junimo huts.
+* Added config option to toggle whether Automate collects moss from trees.
+* Fixed some machines missing in Generic Mod Config Menu UI.
+* Fixed errors when an automated bush is destroyed.
+* Fixed tree machines not always updated correctly if moss is collected manually before the machine does it.
+
+## 2.0.4
+Released 04 April 2024 for SMAPI 4.0.0 or later.
+
+* Chests now collect moss from connected trees (thanks to skoliosaurus!).
+* Improved translations. Thanks to EngurRuzgar (updated Turkish), JhonatanMedeiros (updated Portuguese), Jualko (updated German), and MakinDay (updated Italian)!
+
+## 2.0.3
+Released 21 March 2024 for SMAPI 4.0.0 or later.
+
+* Fixed machines not pulling items from Junimo chests.
+* Fixed error loading machines if another mod added an empty `Action` map tile property.
+* Fixed error collecting output from data-based machines which provide XP.
+* Fixed repeating errors when a custom automation factory throws an unhandled exception. Automate will now log a single error with the relevant info.
+
+## 2.0.2
+Released 21 March 2024 for SMAPI 4.0.0 or later.
+
+* Fixed some `Data/Machines` logic not being applied. This caused issues like crystalariums and worm bins not resuming when their output was collected.
+
+## 2.0.1
+Released 20 March 2024 for SMAPI 4.0.0 or later.
+
+* Fixed support for the new big chests in Stardew Valley 1.6.
+* Fixed chests collecting endless seeds from trees.
+* Fixed new fairy dust option not shown in Generic Mod Config Menu.
+
+## 2.0.0
+Released 19 March 2024 for SMAPI 4.0.0 or later.
+
+* Updated for Stardew Valley 1.6.
+* Added support for custom machines in the new `Data/Machines` asset.
+* Added support for custom floors/paths as connectors.
+* Added support for fairy dust. You can configure the minimum processing time for which to apply it in `config.json`.
+* Added options in Generic Mod Config Menu to toggle or set the priority for all machines in `Data/Machines`.
+* `automate summary` now shows each chest's automation options if edited.
+* Removed the 'prevent empty stack' chest option. This is no longer feasible due to how machines work in Stardew Valley 1.6.
+* Automating a cask will no longer let it work outside the cellar, due to changes in how the mod works for Stardew Valley 1.6.
+* Improved translations. Thanks to EmWhyKay (updated Turkish)!
+* Fixed errors if some config fields are set to null.
+
 ## 1.28.7
 Released 01 December 2023 for SMAPI 3.14.0 or later.
 

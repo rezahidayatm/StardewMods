@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using ContentPatcher.Framework.Constants;
 using ContentPatcher.Framework.Tokens;
@@ -68,6 +69,7 @@ namespace ContentPatcher.Framework.TextOperations
 
         /// <summary>Get a copy of the input with the text operation applied.</summary>
         /// <param name="text">The input to modify.</param>
+        [return: NotNullIfNotNull(nameof(text))]
         public abstract string? Apply(string? text);
 
 

@@ -12,6 +12,8 @@ using Pathoschild.Stardew.Common;
 using Pathoschild.Stardew.Common.Utilities;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
+using StardewValley;
+using StardewValley.Extensions;
 using xTile;
 
 namespace ContentPatcher.Framework
@@ -22,7 +24,7 @@ namespace ContentPatcher.Framework
     //        1. Dictionary inserts are much more expensive than lookups, so this leads to thrashing where the same
     //           keys are repeatedly removed & re-added and the dictionary tree gets repeatedly rebalanced.
     //        2. Some of the code assumes that a previously indexed key is guaranteed to be in the lookups, to avoid
-    //           repeating does-entry-exist checks every time. 
+    //           repeating does-entry-exist checks every time.
     //
 
     /// <summary>Manages loaded patches.</summary>
@@ -31,9 +33,6 @@ namespace ContentPatcher.Framework
         /*********
         ** Fields
         *********/
-        /// <summary>Whether to apply changes from each content pack in a separate operation.</summary>
-        private readonly bool GroupEditsByMod;
-
         /// <summary>Manages the available contextual tokens.</summary>
         private readonly TokenManager TokenManager;
 
@@ -59,18 +58,21 @@ namespace ContentPatcher.Framework
         private readonly Dictionary<IPatch, IndexedPatchValues> IndexedPatchValues = new(new ObjectReferenceComparer<IPatch>());
 
         /// <summary>The new patches which haven't received a context update yet.</summary>
-        private readonly HashSet<IPatch> PendingPatches = new();
+        private readonly HashSet<IPatch> PendingPatches = [];
 
         /// <summary>Assets for which patches were removed, which should be reloaded on the next context update.</summary>
-        private readonly HashSet<IAssetName> AssetsWithRemovedPatches = new();
+        private readonly HashSet<IAssetName> AssetsWithRemovedPatches = [];
 
         /// <summary>The token changes queued for periodic update types.</summary>
         private readonly IDictionary<ContextUpdateType, MutableInvariantSet> QueuedTokenChanges = new Dictionary<ContextUpdateType, MutableInvariantSet>
         {
-            [ContextUpdateType.OnTimeChange] = new(),
-            [ContextUpdateType.OnLocationChange] = new(),
-            [ContextUpdateType.All] = new()
+            [ContextUpdateType.OnTimeChange] = [],
+            [ContextUpdateType.OnLocationChange] = [],
+            [ContextUpdateType.All] = []
         };
+
+        /// <summary>A low-level content manager which is detached from SMAPI's content API, used to check whether an asset exists in the base game's content folder.</summary>
+        private readonly LocalizedContentManager RawFileContentManager;
 
 
         /*********
@@ -80,28 +82,27 @@ namespace ContentPatcher.Framework
         /// <param name="monitor">Encapsulates monitoring and logging.</param>
         /// <param name="tokenManager">Manages the available contextual tokens.</param>
         /// <param name="assetValidators">Handle special validation logic on loaded or edited assets.</param>
-        /// <param name="groupEditsByMod">Whether to apply changes from each content pack in a separate operation.</param>
-        public PatchManager(IMonitor monitor, TokenManager tokenManager, IAssetValidator[] assetValidators, bool groupEditsByMod)
+        public PatchManager(IMonitor monitor, TokenManager tokenManager, IAssetValidator[] assetValidators)
         {
             this.Monitor = monitor;
             this.TokenManager = tokenManager;
             this.AssetValidators = assetValidators;
-            this.GroupEditsByMod = groupEditsByMod;
+            this.RawFileContentManager = new LocalizedContentManager(Game1.content.ServiceProvider, Game1.content.RootDirectory);
         }
 
         /****
         ** Patching
         ****/
-        /// <inheritdoc cref="IContentEvents.AssetRequested"/>
+        /// <inheritdoc cref="IContentEvents.AssetRequested" />
         /// <param name="e">The event data.</param>
         /// <param name="ignoreLoadPatches">Whether to ignore any load patches for this asset.</param>
         public void OnAssetRequested(AssetRequestedEventArgs e, bool ignoreLoadPatches)
         {
-            IAssetName assetName = e.NameWithoutLocale;
-            IPatch[] loaders = !ignoreLoadPatches
-                ? this.GetCurrentLoaders(assetName).ToArray()
-                : Array.Empty<IPatch>();
-            IPatch[] editors = this.GetCurrentEditors(assetName, e.DataType).ToArray();
+            LoadPatch[] loaders = !ignoreLoadPatches
+                ? this.GetCurrentLoaders(e).ToArray()
+                : [];
+
+            IPatch[] editors = this.GetCurrentEditors(e).ToArray();
 
             if (loaders.Any() || editors.Any())
             {
@@ -110,7 +111,7 @@ namespace ContentPatcher.Framework
                     .GetMethod(nameof(this.ApplyPatchesToAsset), BindingFlags.Instance | BindingFlags.NonPublic)!
                     .MakeGenericMethod(e.DataType);
 
-                apply.Invoke(this, new object[] { e, loaders, editors });
+                apply.Invoke(this, [e, loaders, editors]);
             }
         }
 
@@ -145,11 +146,11 @@ namespace ContentPatcher.Framework
                     foreach ((ContextUpdateType curType, MutableInvariantSet queued) in this.QueuedTokenChanges)
                     {
                         if (curType != updateType)
-                            queued.AddMany(globalChangedTokens);
+                            queued.AddRange(globalChangedTokens);
                     }
 
                     // get queued changes for the current update point
-                    affectedTokens.AddMany(this.QueuedTokenChanges[updateType]);
+                    affectedTokens.AddRange(this.QueuedTokenChanges[updateType]);
                     this.QueuedTokenChanges[updateType].Clear();
                 }
 
@@ -170,7 +171,7 @@ namespace ContentPatcher.Framework
 
             // init for verbose logging
             List<PatchAuditChange>? verbosePatchesReloaded = verbose
-                ? new()
+                ? []
                 : null;
 
             // update patches
@@ -285,7 +286,7 @@ namespace ContentPatcher.Framework
                 {
                     var patch = entry.Patch;
 
-                    List<string> notes = new();
+                    List<string> notes = [];
 
                     if (entry.WillInvalidate)
                     {
@@ -383,7 +384,7 @@ namespace ContentPatcher.Framework
         {
             if (this.PatchesByCurrentTarget.TryGetValue(assetName, out SortedSet<IPatch>? patches))
                 return patches;
-            return Array.Empty<IPatch>();
+            return [];
         }
 
         /// <summary>Get all valid patches grouped by their current target value.</summary>
@@ -400,26 +401,52 @@ namespace ContentPatcher.Framework
         }
 
         /// <summary>Get patches which load the given asset in the current context.</summary>
-        /// <param name="assetName">The asset being intercepted.</param>
-        public IEnumerable<IPatch> GetCurrentLoaders(IAssetName assetName)
+        /// <param name="request">The asset request being intercepted.</param>
+        public IEnumerable<LoadPatch> GetCurrentLoaders(AssetRequestedEventArgs request)
         {
+            // If this is a request for a localized asset which isn't normally localized (like `Data/Buildings.fr-FR`)
+            // *or* a new mod-provided asset, only load the base name. If the content manager doesn't find the
+            // localized form, it'll load the base form next.
+            IAssetName assetName = request.Name;
+            IAssetName baseAssetName = request.NameWithoutLocale;
+            bool skipLocalizedAssetByDefault =
+                assetName.LocaleCode != null
+                && (
+                    !this.RawFileContentManager.DoesAssetExist<object>($"{baseAssetName}.fr-FR") // check fr-FR instead of the actual locale, since we do want to load it for a custom language
+                    || !this.RawFileContentManager.DoesAssetExist<object>($"{baseAssetName}")
+                );
+
+            // find matching loader
             return this
-                .GetPatches(assetName)
-                .Where(patch => patch.Type == PatchType.Load && patch.IsReady);
+                .GetPatches(baseAssetName)
+                .Where(patch =>
+                    patch.IsReady
+                    && (patch.TargetLocale is not null
+                        ? string.Equals(patch.TargetLocale, assetName.LocaleCode, StringComparison.InvariantCultureIgnoreCase)
+                        : !skipLocalizedAssetByDefault
+                    )
+                )
+                .OfType<LoadPatch>();
         }
 
         /// <summary>Get patches which edit the given asset in the current context.</summary>
-        /// <param name="assetName">The asset being intercepted.</param>
-        /// <param name="dataType">The asset data type.</param>
-        public IEnumerable<IPatch> GetCurrentEditors(IAssetName assetName, Type dataType)
+        /// <param name="request">The asset request being intercepted.</param>
+        public IEnumerable<IPatch> GetCurrentEditors(AssetRequestedEventArgs request)
         {
-            PatchType? patchType = this.GetEditType(dataType);
+            PatchType? patchType = this.GetEditType(request.DataType);
             if (patchType == null)
-                return Array.Empty<IPatch>();
+                return [];
 
             return this
-                .GetPatches(assetName)
-                .Where(patch => patch.Type == patchType && patch.IsReady);
+                .GetPatches(request.NameWithoutLocale)
+                .Where(patch =>
+                    patch.Type == patchType
+                    && patch.IsReady
+                    && (
+                        patch.TargetLocale is null
+                        || string.Equals(patch.TargetLocale, request.Name.LocaleCode, StringComparison.InvariantCultureIgnoreCase)
+                    )
+                );
         }
 
         /*********
@@ -430,72 +457,79 @@ namespace ContentPatcher.Framework
         /// <param name="e">The asset requested context.</param>
         /// <param name="loaders">The load patch to apply.</param>
         /// <param name="editors">The edit patch to apply.</param>
-        private void ApplyPatchesToAsset<T>(AssetRequestedEventArgs e, IPatch[] loaders, IPatch[] editors)
+        private void ApplyPatchesToAsset<T>(AssetRequestedEventArgs e, LoadPatch[] loaders, IPatch[] editors)
             where T : notnull
         {
             IAssetName assetName = e.NameWithoutLocale;
 
-            // pre-validate loaders to show more user-friendly messages
-            if (loaders.Length > 1)
+            // validate & select loader by priority
+            LoadPatch? loader = null;
+            foreach (LoadPatch candidate in loaders)
             {
-                string[] modNames = loaders.Select(p => p.ContentPack.Manifest.Name).Distinct().OrderByHuman().ToArray();
-                string[] patchNames = loaders.Select(p => p.Path.ToString()).OrderByHuman().ToArray();
-                switch (modNames.Length)
+                // skip if patch is invalid
+                if (!candidate.FromAssetExists())
                 {
-                    case 1:
-                        this.Monitor.Log($"'{modNames[0]}' has multiple patches which load the '{assetName}' asset at the same time ({string.Join(", ", patchNames)}). None will be applied. You should report this to the content pack author.", LogLevel.Error);
-                        break;
-
-                    case 2:
-                        this.Monitor.Log($"Two content packs want to load the '{assetName}' asset ({string.Join(" and ", modNames)}). Neither will be applied. You should remove one of the content packs, or ask the authors about compatibility.", LogLevel.Error);
-                        this.Monitor.Log($"Affected patches: {string.Join(", ", patchNames)}");
-                        break;
-
-                    default:
-                        this.Monitor.Log($"Multiple content packs want to load the '{assetName}' asset ({string.Join(", ", modNames)}). None will be applied. You should remove some of the content packs, or ask the authors about compatibility.", LogLevel.Error);
-                        this.Monitor.Log($"Affected patches: {string.Join(", ", patchNames)}");
-                        break;
+                    this.Monitor.Log($"Can't apply load \"{candidate.Path}\" to {candidate.TargetAsset}: the {nameof(PatchConfig.FromFile)} file '{candidate.FromAsset}' doesn't exist.", LogLevel.Warn);
+                    continue;
                 }
 
-                loaders = Array.Empty<IPatch>();
-            }
-            else if (loaders.Length == 1 && !loaders[0].FromAssetExists())
-            {
-                this.Monitor.Log($"Can't apply load \"{loaders[0].Path}\" to {loaders[0].TargetAsset}: the {nameof(PatchConfig.FromFile)} file '{loaders[0].FromAsset}' doesn't exist.", LogLevel.Warn);
-                loaders = Array.Empty<IPatch>();
+                // skip if we already found a better match
+                if (loader?.Priority > candidate.Priority)
+                    continue;
+
+                // abort if we have multiple exclusive patches
+                const int exclusivePriority = (int)AssetLoadPriority.Exclusive;
+                if (candidate.Priority is exclusivePriority && loader?.Priority == exclusivePriority)
+                {
+                    IPatch[] exclusiveLoaders = loaders.Where(p => p.Priority == exclusivePriority).ToArray<IPatch>();
+                    string[] modNames = exclusiveLoaders.Select(p => p.ContentPack.Manifest.Name).Distinct().OrderByHuman().ToArray();
+                    string[] patchNames = exclusiveLoaders.Select(p => p.Path.ToString()).OrderByHuman().ToArray();
+                    switch (modNames.Length)
+                    {
+                        case 1:
+                            this.Monitor.Log($"'{modNames[0]}' has multiple patches with the '{nameof(AssetLoadPriority.Exclusive)}' priority which load the '{assetName}' asset at the same time ({string.Join(", ", patchNames)}). None will be applied. You should report this to the content pack author.", LogLevel.Error);
+                            break;
+
+                        case 2:
+                            this.Monitor.Log($"Two content packs want to load the '{assetName}' asset with the '{nameof(AssetLoadPriority.Exclusive)}' priority ({string.Join(" and ", modNames)}). Neither will be applied. You should remove one of the content packs, or ask the authors about compatibility.", LogLevel.Error);
+                            this.Monitor.Log($"Affected patches: {string.Join(", ", patchNames)}");
+                            break;
+
+                        default:
+                            this.Monitor.Log($"Multiple content packs want to load the '{assetName}' asset with the '{nameof(AssetLoadPriority.Exclusive)}' priority ({string.Join(", ", modNames)}). None will be applied. You should remove some of the content packs, or ask the authors about compatibility.", LogLevel.Error);
+                            this.Monitor.Log($"Affected patches: {string.Join(", ", patchNames)}");
+                            break;
+                    }
+
+                    loader = null;
+                    break;
+                }
+
+                // else best match so far
+                loader = candidate;
             }
 
-            // apply load patches
-            if (loaders.Any())
+            // apply selected load patch
+            if (loader != null)
             {
                 e.LoadFrom(
-                    load: () => this.ApplyLoad<T>(loaders[0], assetName)!, // only returns null when invalid, in which case there's no other way to abort
+                    load: () => this.ApplyLoad<T>(loader, assetName)!, // only returns null when invalid, in which case there's no other way to abort
                     priority: AssetLoadPriority.Exclusive,
-                    onBehalfOf: loaders[0].ContentPack.Manifest.UniqueID
+                    onBehalfOf: loader.ContentPack.Manifest.UniqueID
                 );
             }
 
             // apply edit patches
             if (editors.Any())
             {
-                if (this.GroupEditsByMod)
+                List<List<IPatch>> editGroups = this.SortAndGroupEditPatches(editors);
+                foreach (List<IPatch> group in editGroups)
                 {
-                    List<List<IPatch>> editGroups = this.GroupSortedPatchesByMod(editors);
-                    foreach (List<IPatch> group in editGroups)
-                    {
-                        List<IPatch> patches = group; // avoid capturing foreach variable in the deferred callback
-                        e.Edit(
-                            apply: data => this.ApplyEdits<T>(patches, data),
-                            priority: AssetEditPriority.Default,
-                            onBehalfOf: patches[0].ContentPack.Manifest.UniqueID
-                        );
-                    }
-                }
-                else
-                {
+                    List<IPatch> patches = group; // avoid capturing foreach variable in the deferred callback
                     e.Edit(
-                        apply: data => this.ApplyEdits<T>(editors, data),
-                        priority: AssetEditPriority.Default
+                        apply: data => this.ApplyEdits<T>(patches, data),
+                        priority: AssetEditPriority.Default,
+                        onBehalfOf: patches[0].ContentPack.Manifest.UniqueID
                     );
                 }
             }
@@ -510,25 +544,52 @@ namespace ContentPatcher.Framework
         /// <param name="patch">The patch to apply.</param>
         /// <param name="assetName">The asset name to load.</param>
         /// <returns>Returns the loaded asset data.</returns>
-        private T? ApplyLoad<T>(IPatch patch, IAssetName assetName)
+        private T? ApplyLoad<T>(LoadPatch patch, IAssetName assetName)
             where T : notnull
         {
             if (this.Monitor.IsVerbose)
                 this.Monitor.Log($"Patch \"{patch.Path}\" loaded {assetName}.");
 
-            T data = patch.Load<T>(assetName);
-
-            foreach (IAssetValidator validator in this.AssetValidators)
+            try
             {
-                if (!validator.TryValidate(assetName, data, patch, out string? error))
+                // apply runtime migration
                 {
-                    this.Monitor.Log($"Can't apply patch {patch.Path} to {assetName}: {error}.", LogLevel.Error);
-                    return default;
+                    T? data = default;
+                    if (patch.Migrator.TryApplyLoadPatch(patch, assetName, ref data, out string? error))
+                    {
+                        patch.IsApplied = true;
+                        return data;
+                    }
+
+                    if (error != null)
+                    {
+                        this.Monitor.Log($"Can't apply patch {patch.Path} to {assetName}: {error}.", LogLevel.Error);
+                        return default;
+                    }
+                }
+
+                // else load normally
+                {
+                    T data = patch.Load<T>(assetName);
+
+                    foreach (IAssetValidator validator in this.AssetValidators)
+                    {
+                        if (!validator.TryValidate(assetName, data, patch, out string? error))
+                        {
+                            this.Monitor.Log($"Can't apply patch {patch.Path} to {assetName}: {error}.", LogLevel.Error);
+                            return default;
+                        }
+                    }
+
+                    patch.IsApplied = true;
+                    return data;
                 }
             }
-
-            patch.IsApplied = true;
-            return data;
+            catch (Exception ex)
+            {
+                this.Monitor.Log($"Can't apply patch {patch.Path} to {assetName}:\n{ex}.", LogLevel.Error);
+                return default;
+            }
         }
 
         /// <summary>Apply edit patches to an asset.</summary>
@@ -545,8 +606,18 @@ namespace ContentPatcher.Framework
 
                 try
                 {
-                    patch.Edit<T>(asset);
-                    patch.IsApplied = true;
+                    // apply runtime migration
+                    if (patch.Migrator.TryApplyEditPatch<T>(patch, asset, out string? error))
+                        patch.IsApplied = true;
+                    else if (error != null)
+                        this.Monitor.Log($"Can't apply patch {patch.Path} to {asset.Name}: {error}.", LogLevel.Error);
+
+                    // else apply normally
+                    else
+                    {
+                        patch.Edit<T>(asset);
+                        patch.IsApplied = true;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -588,20 +659,20 @@ namespace ContentPatcher.Framework
             }
 
             // add uninitialized patches
-            patches.AddMany(this.PendingPatches);
+            patches.AddRange(this.PendingPatches);
 
             return patches;
         }
 
-        /// <summary>Group a list of patches by the mod which defines them, without changing the order they're applied.</summary>
+        /// <summary>Sort a list of patches by priority and group sequential edits by mod.</summary>
         /// <param name="patches">The patches to group.</param>
-        private List<List<IPatch>> GroupSortedPatchesByMod(IEnumerable<IPatch> patches)
+        private List<List<IPatch>> SortAndGroupEditPatches(IEnumerable<IPatch> patches)
         {
-            List<List<IPatch>> groups = new();
+            List<List<IPatch>> groups = [];
 
             string? lastModId = null;
-            List<IPatch> group = new();
-            foreach (IPatch patch in patches)
+            List<IPatch> group = [];
+            foreach (IPatch patch in patches.OrderBy(p => p.Priority))
             {
                 string modId = patch.ContentPack.Manifest.UniqueID;
                 if (modId != lastModId)
@@ -610,7 +681,7 @@ namespace ContentPatcher.Framework
                     if (group.Count > 0)
                     {
                         groups.Add(group);
-                        group = new();
+                        group = [];
                     }
                 }
 
@@ -705,7 +776,7 @@ namespace ContentPatcher.Framework
         /// <param name="modContext">The token context for the mod which owns the patch.</param>
         private IInvariantSet ResolveTokensUsed(IInvariantSet rawTokens, ModTokenContext modContext)
         {
-            MutableInvariantSet resolvedTokens = new();
+            MutableInvariantSet resolvedTokens = [];
 
             foreach (string rawToken in rawTokens)
             {
@@ -740,7 +811,7 @@ namespace ContentPatcher.Framework
             if (this.PatchesAffectedByToken.TryGetValue(tokenName, out HashSet<IPatch>? set))
                 return set;
 
-            set = new HashSet<IPatch>();
+            set = [];
             this.PatchesAffectedByToken[tokenName] = set;
             return set;
         }

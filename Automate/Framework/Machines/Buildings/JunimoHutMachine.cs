@@ -1,4 +1,3 @@
-using System.Linq;
 using Pathoschild.Stardew.Automate.Framework.Models;
 using StardewValley;
 using StardewValley.Buildings;
@@ -29,7 +28,7 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Buildings
         private readonly bool HasIgnoredOutput;
 
         /// <summary>The Junimo hut's output chest.</summary>
-        private Chest Output => this.Machine.output.Value;
+        private Chest Output => this.Machine.GetOutputChest();
 
 
         /*********
@@ -58,7 +57,7 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Buildings
                 || seedBehavior is not JunimoHutBehavior.MoveIntoChests;
         }
 
-        /// <summary>Get the machine's processing state.</summary>
+        /// <inheritdoc />
         public override MachineState GetState()
         {
             if (this.Machine.isUnderConstruction())
@@ -72,15 +71,13 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Buildings
                 : MachineState.Processing;
         }
 
-        /// <summary>Get the machine output.</summary>
+        /// <inheritdoc />
         public override ITrackedStack? GetOutput()
         {
             return this.GetTracked(this.GetNextOutput(), onEmpty: this.OnOutputTaken);
         }
 
-        /// <summary>Provide input to the machine.</summary>
-        /// <param name="input">The available items.</param>
-        /// <returns>Returns whether the machine started processing an item.</returns>
+        /// <inheritdoc />
         public override bool SetInput(IStorage input)
         {
             if (!this.HasInput)
@@ -129,14 +126,17 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Buildings
         private void OnOutputTaken(Item item)
         {
             this.Output.clearNulls();
-            this.Output.items.Remove(item);
+            this.Output.Items.Remove(item);
         }
 
         /// <summary>Get the next output item.</summary>
         private Item? GetNextOutput()
         {
-            foreach (Item item in this.Output.items.Where(p => p != null))
+            foreach (Item item in this.Output.Items)
             {
+                if (item is null || item.QualifiedItemId == "(O)Raisins")
+                    continue;
+
                 if (this.HasIgnoredOutput)
                 {
                     bool ignore = false;

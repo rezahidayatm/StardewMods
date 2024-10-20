@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Pathoschild.Stardew.Common;
-using Pathoschild.Stardew.Common.Items.ItemData;
 using Pathoschild.Stardew.LookupAnything.Framework.Fields.Models;
 using StardewValley;
 using StardewValley.Buildings;
-using StardewValley.Objects;
+using StardewValley.GameData.Buildings;
+using StardewValley.TokenizableStrings;
 
 namespace Pathoschild.Stardew.LookupAnything.Framework.Models
 {
@@ -26,11 +26,8 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Models
         /// <summary>The recipe's lookup name (if any).</summary>
         public string? Key { get; }
 
-        /// <summary>The object parent sheet index for the machine, if applicable.</summary>
-        public int? MachineParentSheetIndex { get; }
-
-        /// <summary>Get whether this recipe is for the given machine.</summary>
-        public Func<object, bool> IsForMachine { get; }
+        /// <summary>The unique ID for the machine which processes this recipe, if applicable. This is the qualified item ID for an object machine, or the building type for a building, or <c>null</c> for any other recipe.</summary>
+        public string? MachineId { get; }
 
         /// <summary>The recipe type.</summary>
         public RecipeType Type { get; }
@@ -41,11 +38,11 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Models
         /// <summary>The items needed to craft the recipe (item ID => number needed).</summary>
         public RecipeIngredientModel[] Ingredients { get; }
 
-        /// <summary>The item ID produced by this recipe, if applicable.</summary>
-        public int? OutputItemIndex { get; }
+        /// <summary>The gold price to craft the recipe (e.g. for buildings construction), if any.</summary>
+        public int GoldPrice { get; }
 
-        /// <summary>The item type produced by this recipe, if applicable.</summary>
-        public ItemType? OutputItemType { get; }
+        /// <summary>The qualified item ID produced by this recipe, if applicable.</summary>
+        public string? OutputQualifiedItemId { get; }
 
         /// <summary>The minimum number of items output by the recipe.</summary>
         public int MinOutput { get; }
@@ -65,6 +62,12 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Models
         /// <summary>The sprite and display text for a non-standard recipe output.</summary>
         public RecipeItemEntry? SpecialOutput { get; }
 
+        /// <summary>The item quality that will be produced, if applicable.</summary>
+        public int? Quality { get; }
+
+        /// <summary>The game state queries which indicate when this recipe is available, if any.</summary>
+        public string[] Conditions { get; }
+
 
         /*********
         ** Public methods
@@ -74,17 +77,18 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Models
         /// <param name="type">The recipe type.</param>
         /// <param name="displayType">The display name for the machine or building name for which the recipe applies.</param>
         /// <param name="ingredients">The items needed to craft the recipe (item ID => number needed).</param>
+        /// <param name="goldPrice">The gold price to craft the recipe (e.g. for buildings construction), if any.</param>
         /// <param name="item">The item that's created by this recipe, given an optional input.</param>
         /// <param name="isKnown">Whether the player knows this recipe.</param>
-        /// <param name="machineParentSheetIndex">The object parent sheet index for the machine, if applicable.</param>
-        /// <param name="isForMachine">Get whether this recipe is for the given machine.</param>
+        /// <param name="machineId">The machine's qualified item ID, if applicable.</param>
         /// <param name="exceptIngredients">The ingredients which can't be used in this recipe (typically exceptions for a category ingredient).</param>
-        /// <param name="outputItemIndex">The item ID produced by this recipe, if applicable.</param>
-        /// <param name="outputItemType">The item type produced by this recipe, if applicable.</param>
+        /// <param name="outputQualifiedItemId">The qualified item ID produced by this recipe, if applicable.</param>
         /// <param name="minOutput">The minimum number of items output by the recipe.</param>
         /// <param name="maxOutput">The maximum number of items output by the recipe.</param>
+        /// <param name="quality">The item quality that will be produced, if applicable.</param>
         /// <param name="outputChance">The percentage chance of this recipe being produced (or <c>null</c> if the recipe is always used).</param>
-        public RecipeModel(string? key, RecipeType type, string displayType, IEnumerable<RecipeIngredientModel> ingredients, Func<Item?, Item?>? item, Func<bool> isKnown, int? machineParentSheetIndex, Func<object, bool> isForMachine, IEnumerable<RecipeIngredientModel>? exceptIngredients = null, int? outputItemIndex = null, ItemType? outputItemType = null, int? minOutput = null, int? maxOutput = null, decimal? outputChance = null)
+        /// <param name="conditions">The game state queries which indicate when this recipe is available, if any.</param>
+        public RecipeModel(string? key, RecipeType type, string displayType, IEnumerable<RecipeIngredientModel> ingredients, int goldPrice, Func<Item?, Item?>? item, Func<bool> isKnown, string? machineId, IEnumerable<RecipeIngredientModel>? exceptIngredients = null, string? outputQualifiedItemId = null, int? minOutput = null, int? maxOutput = null, decimal? outputChance = null, int? quality = null, string[]? conditions = null)
         {
             // normalize values
             if (minOutput == null && maxOutput == null)
@@ -102,57 +106,59 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Models
             this.Type = type;
             this.DisplayType = displayType;
             this.Ingredients = ingredients.ToArray();
-            this.MachineParentSheetIndex = machineParentSheetIndex;
-            this.IsForMachine = isForMachine;
-            this.ExceptIngredients = exceptIngredients?.ToArray() ?? Array.Empty<RecipeIngredientModel>();
+            this.GoldPrice = goldPrice;
+            this.MachineId = machineId;
+            this.ExceptIngredients = exceptIngredients?.ToArray() ?? [];
             this.Item = item;
             this.IsKnown = isKnown;
-            this.OutputItemIndex = outputItemIndex;
-            this.OutputItemType = outputItemType;
+            this.OutputQualifiedItemId = outputQualifiedItemId;
             this.MinOutput = minOutput!.Value;
             this.MaxOutput = maxOutput!.Value;
             this.OutputChance = outputChance is > 0 and < 100 ? outputChance.Value : 100;
+            this.Quality = quality;
+            this.Conditions = conditions ?? [];
         }
 
         /// <summary>Construct an instance.</summary>
         /// <param name="recipe">The recipe to parse.</param>
+        /// <param name="outputQualifiedItemId">The qualified item ID produced by this recipe.</param>
         /// <param name="ingredients">The items needed to craft the recipe, or <c>null</c> to parse them from the recipe.</param>
-        public RecipeModel(CraftingRecipe recipe, RecipeIngredientModel[]? ingredients = null)
+        public RecipeModel(CraftingRecipe recipe, string? outputQualifiedItemId, RecipeIngredientModel[]? ingredients = null)
             : this(
                 key: recipe.name,
                 type: recipe.isCookingRecipe ? RecipeType.Cooking : RecipeType.Crafting,
                 displayType: recipe.isCookingRecipe ? I18n.RecipeType_Cooking() : I18n.RecipeType_Crafting(),
                 ingredients: ingredients ?? RecipeModel.ParseIngredients(recipe),
+                goldPrice: 0,
                 item: _ => recipe.createItem(),
                 isKnown: () => recipe.name != null && Game1.player.knowsRecipe(recipe.name),
                 minOutput: recipe.numberProducedPerCraft,
-                machineParentSheetIndex: null,
-                isForMachine: _ => false
-            )
-        {
-            this.OutputItemIndex = recipe.itemToProduce[0];
-            this.OutputItemType = this.GetItemType(recipe, this.OutputItemIndex.Value);
-        }
+                machineId: null,
+                outputQualifiedItemId: RecipeModel.QualifyRecipeOutputId(recipe, outputQualifiedItemId) ?? outputQualifiedItemId
+            ) { }
 
         /// <summary>Construct an instance.</summary>
-        /// <param name="blueprint">The building blueprint.</param>
         /// <param name="building">A sample building constructed by the blueprint.</param>
-        /// <param name="ingredients">The items needed to construct the blueprint, or <c>null</c> to parse them from the blueprint.</param>
-        public RecipeModel(BluePrint blueprint, Building building, RecipeIngredientModel[]? ingredients = null)
+        /// <param name="ingredients">The items needed to construct the building.</param>
+        /// <param name="goldPrice">The gold price to construct the building.</param>
+        public RecipeModel(Building building, RecipeIngredientModel[] ingredients, int goldPrice)
             : this(
-                key: blueprint.displayName,
+                key: TokenParser.ParseText(building.GetData()?.Name) ?? building.buildingType.Value,
                 type: RecipeType.BuildingBlueprint,
                 displayType: I18n.Building_Construction(),
-                ingredients: ingredients ?? RecipeModel.ParseIngredients(blueprint),
+                ingredients: ingredients,
+                goldPrice: goldPrice,
                 item: _ => null,
                 isKnown: () => true,
-                machineParentSheetIndex: null,
-                isForMachine: _ => false
+                machineId: building.buildingType.Value
             )
         {
             this.SpecialOutput = new RecipeItemEntry(
-                Sprite: new SpriteInfo(building.texture.Value, building.getSourceRectForMenu()),
-                DisplayText: blueprint.displayName ?? building.buildingType.Value
+                Sprite: new SpriteInfo(building.texture.Value, building.getSourceRectForMenu() ?? building.getSourceRect()),
+                DisplayText: TokenParser.ParseText(building.GetData()?.Name) ?? building.buildingType.Value,
+                Quality: null,
+                IsGoldPrice: false,
+                IsValid: true
             );
         }
 
@@ -164,14 +170,14 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Models
                 type: other.Type,
                 displayType: other.DisplayType,
                 ingredients: other.Ingredients,
+                goldPrice: other.GoldPrice,
                 item: other.Item,
                 isKnown: other.IsKnown,
                 exceptIngredients: other.ExceptIngredients,
-                outputItemIndex: other.OutputItemIndex,
-                outputItemType: other.OutputItemType,
+                outputQualifiedItemId: other.OutputQualifiedItemId,
                 minOutput: other.MinOutput,
-                machineParentSheetIndex: other.MachineParentSheetIndex,
-                isForMachine: other.IsForMachine
+                machineId: other.MachineId,
+                conditions: other.Conditions
             )
         { }
 
@@ -179,18 +185,43 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Models
         /// <param name="recipe">The crafting recipe.</param>
         public static RecipeIngredientModel[] ParseIngredients(CraftingRecipe recipe)
         {
+            RecipeType type = recipe.isCookingRecipe
+                ? RecipeType.Cooking
+                : RecipeType.Crafting;
+
             return recipe.recipeList
-                .Select(p => new RecipeIngredientModel(p.Key, p.Value))
+                .Select(p => new RecipeIngredientModel(type, p.Key, p.Value))
                 .ToArray();
         }
 
         /// <summary>Parse the ingredients for a recipe.</summary>
-        /// <param name="blueprint">The building blueprint.</param>
-        public static RecipeIngredientModel[] ParseIngredients(BluePrint blueprint)
+        /// <param name="building">The building data.</param>
+        public static RecipeIngredientModel[] ParseIngredients(BuildingData? building)
         {
-            return blueprint.itemsRequired
-                .Select(ingredient => new RecipeIngredientModel(ingredient.Key, ingredient.Value))
+            if (building?.BuildMaterials?.Count is not > 0)
+                return [];
+
+            return building.BuildMaterials
+                .Select(ingredient => new RecipeIngredientModel(RecipeType.BuildingBlueprint, ingredient.ItemId, ingredient.Amount))
                 .ToArray();
+        }
+
+        /// <summary>Get whether this recipe is for the given building.</summary>
+        /// <param name="building">The building instance.</param>
+        public bool IsForMachine(Building building)
+        {
+            return
+                this.MachineId is not null
+                && this.MachineId == building.buildingType.Value;
+        }
+
+        /// <summary>Get whether this recipe is for the given machine.</summary>
+        /// <param name="machine">The machine instance.</param>
+        public bool IsForMachine(Item machine)
+        {
+            return
+                this.MachineId is not null
+                && this.MachineId == machine.QualifiedItemId;
         }
 
         /// <summary>Create the item crafted by this recipe if it's valid.</summary>
@@ -217,7 +248,12 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Models
             switch (this.Type)
             {
                 case RecipeType.Cooking:
-                    return this.OutputItemIndex.HasValue && player.recipesCooked.TryGetValue(this.OutputItemIndex.Value, out int timesCooked) ? timesCooked : 0;
+                    {
+                        string? localId = ItemRegistry.GetData(this.OutputQualifiedItemId)?.ItemId;
+                        if (localId != null)
+                            return player.recipesCooked.TryGetValue(localId, out int timesCooked) ? timesCooked : 0;
+                    }
+                    return 0;
 
                 case RecipeType.Crafting:
                     return player.craftingRecipes.TryGetValue(this.Key, out int timesCrafted) ? timesCrafted : 0;
@@ -227,19 +263,14 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Models
             }
         }
 
-        /// <summary>Get the item type produced by a recipe.</summary>
-        /// <param name="recipe">The recipe.</param>
-        /// <param name="itemID">The produced item ID.</param>
-        /// <remarks>Derived from <see cref="CraftingRecipe.createItem"/>.</remarks>
-        private ItemType GetItemType(CraftingRecipe recipe, int itemID)
+        /// <summary>Qualify an item ID produced by a recipe, if needed.</summary>
+        /// <param name="recipe">The recipes whose output is being qualified.</param>
+        /// <param name="itemId">The item ID to qualify.</param>
+        public static string? QualifyRecipeOutputId(CraftingRecipe recipe, string? itemId)
         {
-            if (recipe.bigCraftable)
-                return ItemType.BigCraftable;
-
-            if (itemID is >= Ring.ringLowerIndexRange and <= Ring.ringUpperIndexRange || itemID == 801)
-                return ItemType.Ring;
-
-            return ItemType.Object;
+            return recipe.bigCraftable
+                ? ItemRegistry.ManuallyQualifyItemId(itemId, ItemRegistry.type_bigCraftable)
+                : ItemRegistry.QualifyItemId(itemId);
         }
     }
 }

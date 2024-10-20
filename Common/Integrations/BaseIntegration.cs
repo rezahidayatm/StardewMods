@@ -114,8 +114,7 @@ namespace Pathoschild.Stardew.Common.Integrations
                 this.ModApi = this.GetValidatedApi<TApi>();
         }
 
-        /// <summary>Assert that the integration is loaded.</summary>
-        /// <exception cref="InvalidOperationException">The integration isn't loaded.</exception>
+        /// <inheritdoc />
         [MemberNotNull(nameof(BaseIntegration<TApi>.ModApi))]
         protected override void AssertLoaded()
         {

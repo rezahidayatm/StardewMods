@@ -51,6 +51,10 @@ namespace Pathoschild.Stardew.Automate
         /// <summary>The number of ticks until the next automation cycle.</summary>
         private int AutomateCountdown;
 
+        /// <summary>The number of ticks until the config UI is registered with Generic Mod Config Menu.</summary>
+        /// <remarks>This must happen later than <see cref="IGameLoopEvents.GameLaunched"/>, since Content Patcher packs haven't added their edits to <c>Data/Machines</c> yet at that point.</remarks>
+        private int RegisterConfigCountdown = 10;
+
         /// <summary>The current overlay being displayed, if any.</summary>
         private readonly PerScreen<OverlayMenu?> CurrentOverlay = new();
 
@@ -58,8 +62,7 @@ namespace Pathoschild.Stardew.Automate
         /*********
         ** Public methods
         *********/
-        /// <summary>The mod entry point, called after the mod is first loaded.</summary>
-        /// <param name="helper">Provides methods for interacting with the mod directory, such as read/writing a config file or custom JSON files.</param>
+        /// <inheritdoc />
         public override void Entry(IModHelper helper)
         {
             I18n.Init(helper.Translation);
@@ -93,8 +96,7 @@ namespace Pathoschild.Stardew.Automate
                 defaultFactory: new AutomationFactory(
                     config: () => this.Config,
                     monitor: this.Monitor,
-                    reflection: helper.Reflection,
-                    data: this.Data,
+                    reflection: this.Helper.Reflection,
                     isBetterJunimosLoaded: helper.ModRegistry.IsLoaded("hawkfalcon.BetterJunimos")
                 ),
                 monitor: this.Monitor
@@ -103,7 +105,6 @@ namespace Pathoschild.Stardew.Automate
             this.CommandHandler = new CommandHandler(this.Monitor, () => this.Config, this.MachineManager);
 
             // hook events
-            helper.Events.GameLoop.GameLaunched += this.OnGameLaunched;
             helper.Events.GameLoop.SaveLoaded += this.OnSaveLoaded;
             helper.Events.GameLoop.DayStarted += this.OnDayStarted;
             helper.Events.GameLoop.UpdateTicked += this.OnUpdateTicked;
@@ -114,6 +115,7 @@ namespace Pathoschild.Stardew.Automate
             helper.Events.World.LocationListChanged += this.OnLocationListChanged;
             helper.Events.World.ObjectListChanged += this.OnObjectListChanged;
             helper.Events.World.TerrainFeatureListChanged += this.OnTerrainFeatureListChanged;
+            helper.Events.World.LargeTerrainFeatureListChanged += this.OnLargeTerrainFeatureListChanged;
 
             // hook commands
             this.CommandHandler.RegisterWith(helper.ConsoleCommands);
@@ -124,7 +126,7 @@ namespace Pathoschild.Stardew.Automate
                 this.ReportMissingBridgeMods(this.Data.SuggestedIntegrations);
         }
 
-        /// <summary>Get an API that other mods can access. This is always called after <see cref="Entry" />.</summary>
+        /// <inheritdoc />
         public override object GetApi()
         {
             return new AutomateAPI(this.Monitor, this.MachineManager);
@@ -137,30 +139,7 @@ namespace Pathoschild.Stardew.Automate
         /****
         ** Event handlers
         ****/
-        /// <inheritdoc cref="IGameLoopEvents.GameLaunched"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
-        private void OnGameLaunched(object? sender, GameLaunchedEventArgs e)
-        {
-            // add Generic Mod Config Menu integration
-            new GenericModConfigMenuIntegrationForAutomate(
-                data: this.Data,
-                getConfig: () => this.Config,
-                reset: () => this.Config = new ModConfig(),
-                saveAndApply: () =>
-                {
-                    this.Helper.WriteConfig(this.Config);
-                    this.ReloadConfig();
-                },
-                modRegistry: this.Helper.ModRegistry,
-                monitor: this.Monitor,
-                manifest: this.ModManifest
-            ).Register();
-        }
-
-        /// <inheritdoc cref="IGameLoopEvents.SaveLoaded"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IGameLoopEvents.SaveLoaded" />
         private void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
         {
             // disable if secondary player
@@ -178,9 +157,7 @@ namespace Pathoschild.Stardew.Automate
             }
         }
 
-        /// <inheritdoc cref="IGameLoopEvents.DayStarted"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IGameLoopEvents.DayStarted" />
         private void OnDayStarted(object? sender, DayStartedEventArgs e)
         {
             // reset machine state
@@ -194,18 +171,14 @@ namespace Pathoschild.Stardew.Automate
             this.DisableOverlay();
         }
 
-        /// <inheritdoc cref="IPlayerEvents.Warped"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IPlayerEvents.Warped" />
         private void OnWarped(object? sender, WarpedEventArgs e)
         {
             if (e.IsLocalPlayer)
                 this.ResetOverlayIfShown();
         }
 
-        /// <inheritdoc cref="IWorldEvents.LocationListChanged"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IWorldEvents.LocationListChanged" />
         private void OnLocationListChanged(object? sender, LocationListChangedEventArgs e)
         {
             if (!this.EnableAutomationChangeTracking)
@@ -226,9 +199,7 @@ namespace Pathoschild.Stardew.Automate
             }
         }
 
-        /// <inheritdoc cref="IWorldEvents.BuildingListChanged"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IWorldEvents.BuildingListChanged" />
         private void OnBuildingListChanged(object? sender, BuildingListChangedEventArgs e)
         {
             if (!this.EnableAutomationChangeTracking || this.MachineManager.IsReloadQueued(e.Location))
@@ -241,9 +212,7 @@ namespace Pathoschild.Stardew.Automate
             );
         }
 
-        /// <inheritdoc cref="IWorldEvents.ObjectListChanged"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IWorldEvents.ObjectListChanged" />
         private void OnObjectListChanged(object? sender, ObjectListChangedEventArgs e)
         {
             if (!this.EnableAutomationChangeTracking || this.MachineManager.IsReloadQueued(e.Location))
@@ -256,9 +225,7 @@ namespace Pathoschild.Stardew.Automate
             );
         }
 
-        /// <inheritdoc cref="IWorldEvents.TerrainFeatureListChanged"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IWorldEvents.TerrainFeatureListChanged" />
         private void OnTerrainFeatureListChanged(object? sender, TerrainFeatureListChangedEventArgs e)
         {
             if (!this.EnableAutomationChangeTracking || this.MachineManager.IsReloadQueued(e.Location))
@@ -271,50 +238,69 @@ namespace Pathoschild.Stardew.Automate
             );
         }
 
-        /// <inheritdoc cref="IGameLoopEvents.UpdateTicked"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
-        private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
+        /// <inheritdoc cref="IWorldEvents.LargeTerrainFeatureListChanged" />
+        private void OnLargeTerrainFeatureListChanged(object? sender, LargeTerrainFeatureListChangedEventArgs e)
         {
-            if (!Context.IsWorldReady)
+            if (!this.EnableAutomationChangeTracking || this.MachineManager.IsReloadQueued(e.Location))
                 return;
 
-            bool enableAutomation = this.EnableAutomation;
-            bool enableChangeTracking = this.EnableAutomationChangeTracking;
+            this.Monitor.VerboseLog(
+                this.ReloadIfNeeded(e.Location, this.GetDiffList(e.Added, e.Removed, BaseMachine.GetTileAreaFor))
+                    ? $"Large terrain feature list changed in {e.Location.Name}, reloading its machines."
+                    : $"Large terrain feature list changed in {e.Location.Name}, but no reload is needed."
+            );
+        }
 
-            try
+        /// <inheritdoc cref="IGameLoopEvents.UpdateTicked" />
+        private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
+        {
+            // add Generic Mod Config Menu integration
+            if (this.RegisterConfigCountdown > 0 && --this.RegisterConfigCountdown == 0)
             {
-                // reload machines if needed
-                if (enableAutomation || enableChangeTracking)
-                {
-                    if (this.MachineManager.ReloadQueuedLocations())
-                        this.ResetOverlayIfShown();
-                }
+                new GenericModConfigMenuIntegrationForAutomate(
+                    data: this.Data,
+                    getConfig: () => this.Config,
+                    reset: () => this.Config = new ModConfig(),
+                    saveAndApply: () =>
+                    {
+                        this.Helper.WriteConfig(this.Config);
+                        this.ReloadConfig();
+                    },
+                    modRegistry: this.Helper.ModRegistry,
+                    monitor: this.Monitor,
+                    manifest: this.ModManifest
+                ).Register();
+            }
 
-                // apply automation
-                if (enableAutomation)
+            // run automation
+            if (Context.IsWorldReady && this.EnableAutomation)
+            {
+                try
                 {
-                    // handle delay
-                    this.AutomateCountdown--;
-                    if (this.AutomateCountdown > 0)
-                        return;
-                    this.AutomateCountdown = this.Config.AutomationInterval;
-
+                    // reload machines if needed
+                    if (this.EnableAutomationChangeTracking)
+                    {
+                        if (this.MachineManager.ReloadQueuedLocations())
+                            this.ResetOverlayIfShown();
+                    }
 
                     // process machines
-                    foreach (IMachineGroup group in this.MachineManager.GetActiveMachineGroups())
-                        group.Automate();
+                    if (--this.AutomateCountdown <= 0)
+                    {
+                        this.AutomateCountdown = this.Config.AutomationInterval;
+
+                        foreach (IMachineGroup group in this.MachineManager.GetActiveMachineGroups())
+                            group.Automate();
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                this.HandleError(ex, "processing machines");
+                catch (Exception ex)
+                {
+                    this.HandleError(ex, "processing machines");
+                }
             }
         }
 
-        /// <inheritdoc cref="IInputEvents.ButtonsChanged"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IInputEvents.ButtonsChanged" />
         private void OnButtonsChanged(object? sender, ButtonsChangedEventArgs e)
         {
             if (!this.Config.Enabled) // don't check EnableAutomation, since overlay is still available for farmhands
@@ -337,9 +323,7 @@ namespace Pathoschild.Stardew.Automate
             }
         }
 
-        /// <inheritdoc cref="IMultiplayerEvents.ModMessageReceived"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IMultiplayerEvents.ModMessageReceived" />
         private void OnModMessageReceived(object? sender, ModMessageReceivedEventArgs e)
         {
             // update automation if chest options changed
@@ -349,11 +333,15 @@ namespace Pathoschild.Stardew.Automate
                 var location = message.LocationName != null
                     ? Game1.getLocationFromName(message.LocationName)
                     : null;
-                var player = Game1.getFarmer(e.FromPlayerID);
+                var player = Game1.GetPlayer(e.FromPlayerID);
 
-                string label = player != Game1.MasterPlayer
-                    ? $"{player.Name}/{e.FromModID}"
-                    : e.FromModID;
+                string label;
+                if (player is null)
+                    label = $"unknown player {e.FromPlayerID}/{e.FromModID}";
+                else if (player != Game1.MasterPlayer)
+                    label = $"{player.Name}/{e.FromModID}";
+                else
+                    label = e.FromModID;
 
                 if (location != null)
                 {

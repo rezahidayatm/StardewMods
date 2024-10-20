@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
@@ -31,42 +30,33 @@ namespace Pathoschild.Stardew.DataLayers.Layers
         *********/
         /// <summary>Construct an instance.</summary>
         /// <param name="config">The data layer settings.</param>
+        /// <param name="colors">The colors to render.</param>
         /// <param name="mods">Handles access to the supported mod integrations.</param>
-        public MachineLayer(LayerConfig config, ModIntegrations mods)
+        public MachineLayer(LayerConfig config, ColorScheme colors, ModIntegrations mods)
             : base(I18n.Machines_Name(), config)
         {
-            this.Legend = new[]
-            {
-                this.Empty = new LegendEntry(I18n.Keys.Machines_Empty, Color.Red),
-                this.Processing = new LegendEntry(I18n.Keys.Machines_Processing, Color.Orange),
-                this.Finished = new LegendEntry(I18n.Keys.Machines_Finished, Color.Green)
-            };
+            const string layerId = "MachineProcessing";
+
+            this.Legend = [
+                this.Empty = new LegendEntry(I18n.Keys.Machines_Empty, colors.Get(layerId, "Empty", Color.Red)),
+                this.Processing = new LegendEntry(I18n.Keys.Machines_Processing, colors.Get(layerId, "Processing", Color.Orange)),
+                this.Finished = new LegendEntry(I18n.Keys.Machines_Finished, colors.Get(layerId, "Finished", Color.Green))
+            ];
             this.Mods = mods;
         }
 
-        /// <summary>Get the updated data layer tiles.</summary>
-        /// <param name="location">The current location.</param>
-        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
-        /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
-        /// <param name="cursorTile">The tile position under the cursor.</param>
-        public override TileGroup[] Update(GameLocation location, in Rectangle visibleArea, in Vector2[] visibleTiles, in Vector2 cursorTile)
+        /// <inheritdoc />
+        public override TileGroup[] Update(ref readonly GameLocation location, ref readonly Rectangle visibleArea, ref readonly IReadOnlySet<Vector2> visibleTiles, ref readonly Vector2 cursorTile)
         {
-            // get tiles by color
-            IDictionary<string, TileData[]> tiles = this
+            var tileGroups = this
                 .GetTiles(location, visibleArea, visibleTiles)
-                .GroupBy(p => p.Type.Id)
-                .ToDictionary(p => p.Key, p => p.ToArray());
+                .ToLookup(p => p.Type.Id);
 
-            // create tile groups
-            return new[] { this.Empty, this.Processing, this.Finished }
-                .Select(type =>
-                {
-                    if (!tiles.TryGetValue(type.Id, out TileData[]? groupTiles))
-                        groupTiles = Array.Empty<TileData>();
-
-                    return new TileGroup(groupTiles, outerBorderColor: type.Color);
-                })
-                .ToArray();
+            return [
+                new TileGroup(tileGroups[this.Empty.Id], this.Empty.Color),
+                new TileGroup(tileGroups[this.Processing.Id], this.Processing.Color),
+                new TileGroup(tileGroups[this.Finished.Id], this.Finished.Color)
+            ];
         }
 
 
@@ -77,7 +67,7 @@ namespace Pathoschild.Stardew.DataLayers.Layers
         /// <param name="location">The current location.</param>
         /// <param name="visibleArea">The tile area currently visible on the screen.</param>
         /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
-        private IEnumerable<TileData> GetTiles(GameLocation location, Rectangle visibleArea, Vector2[] visibleTiles)
+        private IEnumerable<TileData> GetTiles(GameLocation location, Rectangle visibleArea, IReadOnlySet<Vector2> visibleTiles)
         {
             IDictionary<Vector2, int> machineStates = this.Mods.Automate.GetMachineStates(location, visibleArea);
             foreach (Vector2 tile in visibleTiles)

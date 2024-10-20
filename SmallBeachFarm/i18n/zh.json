@@ -5,6 +5,10 @@
     "farm.name": "小型海滩农场",
     "farm.description": "一片肥沃的小型海滩，你可以在这里抓到河里和海里的鱼。",
 
+    "farm.fish-areas.river": "河流",
+    "farm.fish-areas.estuary": "河口",
+    "farm.fish-areas.ocean": "海洋",
+
 
     /*********
     ** Generic Mod Config Menu UI

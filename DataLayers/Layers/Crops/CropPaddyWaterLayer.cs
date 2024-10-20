@@ -37,22 +37,20 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
         *********/
         /// <summary>Construct an instance.</summary>
         /// <param name="config">The data layer settings.</param>
-        public CropPaddyWaterLayer(LayerConfig config)
+        /// <param name="colors">The colors to render.</param>
+        public CropPaddyWaterLayer(LayerConfig config, ColorScheme colors)
             : base(I18n.CropPaddyWater_Name(), config)
         {
-            this.Legend = new[]
-            {
-                this.InRange = new LegendEntry(I18n.Keys.CropPaddyWater_InRange, Color.Green),
-                this.NotInRange = new LegendEntry(I18n.Keys.CropPaddyWater_NotInRange, Color.Red)
-            };
+            const string layerId = "WaterForPaddyCrops";
+
+            this.Legend = [
+                this.InRange = new LegendEntry(I18n.Keys.CropPaddyWater_InRange, colors.Get(layerId, "InRange", Color.Green)),
+                this.NotInRange = new LegendEntry(I18n.Keys.CropPaddyWater_NotInRange, colors.Get(layerId, "NotInRange", Color.Red))
+            ];
         }
 
-        /// <summary>Get the updated data layer tiles.</summary>
-        /// <param name="location">The current location.</param>
-        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
-        /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
-        /// <param name="cursorTile">The tile position under the cursor.</param>
-        public override TileGroup[] Update(GameLocation location, in Rectangle visibleArea, in Vector2[] visibleTiles, in Vector2 cursorTile)
+        /// <inheritdoc />
+        public override TileGroup[] Update(ref readonly GameLocation location, ref readonly Rectangle visibleArea, ref readonly IReadOnlySet<Vector2> visibleTiles, ref readonly Vector2 cursorTile)
         {
             // update cache on location change
             if (this.LastLocation == null || !object.ReferenceEquals(location, this.LastLocation))
@@ -62,12 +60,11 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
             }
 
             // get paddy tiles
-            HashSet<Vector2> tilesInRange = new HashSet<Vector2>(this.GetTilesInRange(location, visibleTiles));
-            return new[]
-            {
-                new TileGroup(tilesInRange.Select(pos => new TileData(pos, this.InRange)), outerBorderColor: this.InRange.Color),
-                new TileGroup(visibleTiles.Where(pos => !tilesInRange.Contains(pos)).Select(pos => new TileData(pos, this.NotInRange)))
-            };
+            var tilesInRange = visibleTiles.ToLookup(this.GetTilesInRange(location, visibleTiles).Contains);
+            return [
+                new TileGroup(tilesInRange[true].Select(pos => new TileData(pos, this.InRange)), outerBorderColor: this.InRange.Color),
+                new TileGroup(tilesInRange[false].Select(pos => new TileData(pos, this.NotInRange)))
+            ];
         }
 
 
@@ -78,16 +75,20 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
         /// <param name="location">The current location.</param>
         /// <param name="visibleTiles">The tiles currently visible on the screen.</param>
         /// <remarks>Derived from <see cref="HoeDirt.paddyWaterCheck"/>.</remarks>
-        private IEnumerable<Vector2> GetTilesInRange(GameLocation location, Vector2[] visibleTiles)
+        private HashSet<Vector2> GetTilesInRange(GameLocation location, IReadOnlySet<Vector2> visibleTiles)
         {
+            HashSet<Vector2> tiles = new();
+
             foreach (Vector2 tile in visibleTiles)
             {
                 if (!this.TilesInRange.TryGetValue(tile, out bool inRange))
                     this.TilesInRange[tile] = inRange = this.RecalculateTileInRange(location, tile, this.PaddyCrop);
 
                 if (inRange)
-                    yield return tile;
+                    tiles.Add(tile);
             }
+
+            return tiles;
         }
 
         /// <summary>Get whether the tile is in range, without caching.</summary>
@@ -104,8 +105,14 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
             // note: paddyWaterCheck() only works if the dirt contains a paddy crop
             HoeDirt? dirt = this.GetDirt(location, tile, ignorePot: true);
             if (dirt?.hasPaddyCrop() != true && this.IsTillable(location, tile) && location.isTilePassable(new Location((int)tile.X, (int)tile.Y), Game1.viewport))
-                dirt = new HoeDirt(HoeDirt.watered, samplePaddyCrop.Value);
-            return dirt?.paddyWaterCheck(location, tile) ?? false;
+            {
+                dirt = new HoeDirt(HoeDirt.watered, samplePaddyCrop.Value)
+                {
+                    Location = location,
+                    Tile = tile
+                };
+            }
+            return dirt?.paddyWaterCheck() ?? false;
         }
 
         /// <summary>A sample paddy crop.</summary>

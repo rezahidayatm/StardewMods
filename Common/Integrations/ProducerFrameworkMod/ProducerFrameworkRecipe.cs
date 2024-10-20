@@ -1,5 +1,4 @@
 using System.Linq;
-using StardewValley;
 using PreserveType = StardewValley.Object.PreserveType;
 
 namespace Pathoschild.Stardew.Common.Integrations.ProducerFrameworkMod
@@ -11,19 +10,19 @@ namespace Pathoschild.Stardew.Common.Integrations.ProducerFrameworkMod
         ** Accessors
         *********/
         /// <summary>The ID for the main input ingredient, or <c>null</c> for a context tag.</summary>
-        public int? InputId { get; }
+        public string? InputId { get; }
 
         /// <summary>The ID for the machine item.</summary>
-        public int MachineId { get; }
+        public string MachineId { get; }
 
         /// <summary>The items needed to craft the recipe (item ID => number needed).</summary>
         public ProducerFrameworkIngredient[] Ingredients { get; }
 
         /// <summary>The ingredients which can't be used in this recipe, including nulls for context tag ingredients.</summary>
-        public int?[] ExceptIngredients { get; }
+        public string?[] ExceptIngredients { get; }
 
         /// <summary>The item ID produced by this recipe.</summary>
-        public int OutputId { get; }
+        public string OutputId { get; }
 
         /// <summary>The minimum number of items output by the recipe.</summary>
         public int MinOutput { get; }
@@ -51,7 +50,7 @@ namespace Pathoschild.Stardew.Common.Integrations.ProducerFrameworkMod
         /// <param name="maxOutput">The maximum number of items output by the recipe.</param>
         /// <param name="outputChance">The percentage chance of this recipe being produced.</param>
         /// <param name="preserveType">The produced preserve type, if any.</param>
-        public ProducerFrameworkRecipe(int? inputId, int machineId, ProducerFrameworkIngredient[] ingredients, int?[] exceptIngredients, int outputId, int minOutput, int maxOutput, double outputChance, PreserveType? preserveType)
+        public ProducerFrameworkRecipe(string? inputId, string machineId, ProducerFrameworkIngredient[] ingredients, string?[] exceptIngredients, string outputId, int minOutput, int maxOutput, double outputChance, PreserveType? preserveType)
         {
             this.InputId = inputId;
             this.MachineId = machineId;

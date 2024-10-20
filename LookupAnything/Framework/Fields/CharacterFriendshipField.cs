@@ -30,12 +30,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
             this.Friendship = friendship;
         }
 
-        /// <summary>Draw the value (or return <c>null</c> to render the <see cref="GenericField.Value"/> using the default format).</summary>
-        /// <param name="spriteBatch">The sprite batch being drawn.</param>
-        /// <param name="font">The recommended font.</param>
-        /// <param name="position">The position at which to draw.</param>
-        /// <param name="wrapWidth">The maximum width before which content should be wrapped.</param>
-        /// <returns>Returns the drawn dimensions, or <c>null</c> to draw the <see cref="GenericField.Value"/> using the default format.</returns>
+        /// <inheritdoc />
         public override Vector2? DrawValue(SpriteBatch spriteBatch, SpriteFont font, Vector2 position, float wrapWidth)
         {
             FriendshipModel friendship = this.Friendship;
@@ -71,7 +66,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
                 }
 
                 // draw
-                spriteBatch.DrawSprite(CommonSprites.Icons.Sheet, icon, position.X + leftOffset, position.Y, color, Game1.pixelZoom);
+                spriteBatch.DrawSprite(CommonSprites.Icons.Sheet, icon, position.X + leftOffset, position.Y, CommonSprites.Icons.FilledHeart.Size, color, Game1.pixelZoom);
                 leftOffset += CommonSprites.Icons.FilledHeart.Width * Game1.pixelZoom;
             }
 
@@ -80,7 +75,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
             {
                 leftOffset += 1;
                 float zoom = (CommonSprites.Icons.EmptyHeart.Height / (CommonSprites.Icons.Stardrop.Height * 1f)) * Game1.pixelZoom;
-                spriteBatch.DrawSprite(CommonSprites.Icons.Sheet, CommonSprites.Icons.Stardrop, position.X + leftOffset, position.Y, Color.White * 0.25f, zoom);
+                spriteBatch.DrawSprite(CommonSprites.Icons.Sheet, CommonSprites.Icons.Stardrop, position.X + leftOffset, position.Y, CommonSprites.Icons.Stardrop.Size, Color.White * 0.25f, zoom);
                 leftOffset += CommonSprites.Icons.Stardrop.Width * zoom;
             }
 

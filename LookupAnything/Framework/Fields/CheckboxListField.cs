@@ -42,12 +42,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
             this.Checkboxes = checkboxes;
         }
 
-        /// <summary>Draw the value (or return <c>null</c> to render the <see cref="GenericField.Value"/> using the default format).</summary>
-        /// <param name="spriteBatch">The sprite batch being drawn.</param>
-        /// <param name="font">The recommended font.</param>
-        /// <param name="position">The position at which to draw.</param>
-        /// <param name="wrapWidth">The maximum width before which content should be wrapped.</param>
-        /// <returns>Returns the drawn dimensions, or <c>null</c> to draw the <see cref="GenericField.Value"/> using the default format.</returns>
+        /// <inheritdoc />
         public override Vector2? DrawValue(SpriteBatch spriteBatch, SpriteFont font, Vector2 position, float wrapWidth)
         {
             float topOffset = 0;
@@ -125,7 +120,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
         protected CheckboxListField(string label)
             : base(label, hasValue: true)
         {
-            this.Checkboxes = Array.Empty<KeyValuePair<IFormattedText[], bool>>();
+            this.Checkboxes = [];
         }
     }
 }

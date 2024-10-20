@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Text;
 using Microsoft.Xna.Framework;
 using Pathoschild.Stardew.Automate.Framework.Models;
 using Pathoschild.Stardew.Automate.Framework.Storage;
@@ -8,7 +10,6 @@ using Pathoschild.Stardew.Common;
 using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Buildings;
-using StardewValley.Locations;
 using StardewValley.Objects;
 using StardewValley.TerrainFeatures;
 using SObject = StardewValley.Object;
@@ -30,6 +31,9 @@ namespace Pathoschild.Stardew.Automate.Framework
         /// <summary>Build a storage manager for the given containers.</summary>
         private readonly Func<IContainer[], StorageManager> BuildStorage;
 
+        /// <summary>Encapsulates monitoring and logging.</summary>
+        private readonly IMonitor Monitor;
+
 
         /*********
         ** Public methods
@@ -37,10 +41,12 @@ namespace Pathoschild.Stardew.Automate.Framework
         /// <summary>Construct an instance.</summary>
         /// <param name="getMachineOverride">Get the configuration for specific machines by ID, if any.</param>
         /// <param name="buildStorage">Build a storage manager for the given containers.</param>
-        public MachineGroupFactory(Func<string, ModConfigMachine?> getMachineOverride, Func<IContainer[], StorageManager> buildStorage)
+        /// <param name="monitor">Encapsulates monitoring and logging.</param>
+        public MachineGroupFactory(Func<string, ModConfigMachine?> getMachineOverride, Func<IContainer[], StorageManager> buildStorage, IMonitor monitor)
         {
             this.GetMachineOverride = getMachineOverride;
             this.BuildStorage = buildStorage;
+            this.Monitor = monitor;
         }
 
         /// <summary>Add an automation factory.</summary>
@@ -77,7 +83,7 @@ namespace Pathoschild.Stardew.Automate.Framework
         /// <param name="monitor">The monitor with which to log errors.</param>
         public IEnumerable<IMachineGroup> GetMachineGroups(GameLocation location, IMonitor monitor)
         {
-            MachineGroupBuilder builder = new(this.GetLocationKey(location), this.SortMachines, this.BuildStorage);
+            MachineGroupBuilder builder = new(this.GetLocationKey(location), this.SortMachines, this.BuildStorage, this.Monitor);
             LocationFloodFillIndex locationIndex = new(location, monitor);
             ISet<Vector2> visited = new HashSet<Vector2>();
             foreach (Vector2 tile in location.GetTiles())
@@ -101,7 +107,7 @@ namespace Pathoschild.Stardew.Automate.Framework
             {
                 SObject obj => this.GetEntityFor(location, tile, obj),
                 TerrainFeature feature => this.GetEntityFor(location, tile, feature),
-                Building building when location is BuildableGameLocation buildableLocation => this.GetEntityFor(buildableLocation, tile, building),
+                Building building => this.GetEntityFor(location, tile, building),
                 _ => null
             };
         }
@@ -139,7 +145,7 @@ namespace Pathoschild.Stardew.Automate.Framework
                     continue;
 
                 // add machines, containers, or connectors which covers this tile
-                if (this.TryAddEntity(machineGroup, location, locationIndex, tile))
+                if (this.TryAddEntities(machineGroup, location, locationIndex, tile))
                 {
                     foreach (Rectangle tileArea in machineGroup.NewTileAreas)
                     {
@@ -159,45 +165,50 @@ namespace Pathoschild.Stardew.Automate.Framework
             }
         }
 
-        /// <summary>Add any machine, container, or connector on the given tile to the machine group.</summary>
+        /// <summary>Add any machines, containers, or connectors on the given tile to the machine group.</summary>
         /// <param name="group">The machine group to extend.</param>
         /// <param name="location">The location to search.</param>
         /// <param name="locationIndex">An indexed view of the location.</param>
         /// <param name="tile">The tile to search.</param>
-        private bool TryAddEntity(MachineGroupBuilder group, GameLocation location, LocationFloodFillIndex locationIndex, in Vector2 tile)
+        private bool TryAddEntities(MachineGroupBuilder group, GameLocation location, LocationFloodFillIndex locationIndex, in Vector2 tile)
         {
-            IAutomatable? entity = this.GetEntity(location, locationIndex, tile);
-            switch (entity)
+            bool anyAdded = false;
+
+            foreach (IAutomatable? entity in this.GetEntities(location, locationIndex, tile))
             {
-                case null:
-                    return false;
+                switch (entity)
+                {
+                    case IMachine machine:
+                        if (this.GetMachineOverride(machine.MachineTypeID)?.Enabled != false)
+                            group.Add(machine);
+                        anyAdded = true;
+                        break;
 
-                case IMachine machine:
-                    if (this.GetMachineOverride(machine.MachineTypeID)?.Enabled != false)
-                        group.Add(machine);
-                    return true;
+                    case IContainer container:
+                        if (container.StorageAllowed() || container.TakingItemsAllowed())
+                        {
+                            group.Add(container);
+                            anyAdded = true;
+                        }
+                        break;
 
-                case IContainer container:
-                    if (container.StorageAllowed() || container.TakingItemsAllowed())
-                    {
-                        group.Add(container);
-                        return true;
-                    }
-                    return false;
-
-                default:
-                    group.Add(entity.TileArea); // connector
-                    return true;
+                    default:
+                        group.Add(entity.TileArea); // connector
+                        anyAdded = true;
+                        break;
+                }
             }
+
+            return anyAdded;
         }
 
-        /// <summary>Get a machine, container, or connector from the given tile, if any.</summary>
+        /// <summary>Get the machines, containers, or connectors on the given tile, if any.</summary>
         /// <param name="location">The location to search.</param>
         /// <param name="locationIndex">An indexed view of the location.</param>
         /// <param name="tile">The tile to search.</param>
-        private IAutomatable? GetEntity(GameLocation location, LocationFloodFillIndex locationIndex, Vector2 tile)
+        private IEnumerable<IAutomatable> GetEntities(GameLocation location, LocationFloodFillIndex locationIndex, Vector2 tile)
         {
-            // from entity
+            // from entities
             foreach (object target in locationIndex.GetEntities(tile))
             {
                 switch (target)
@@ -206,13 +217,13 @@ namespace Pathoschild.Stardew.Automate.Framework
                         {
                             IAutomatable? entity = this.GetEntityFor(location, tile, obj);
                             if (entity != null)
-                                return entity;
+                                yield return entity;
 
                             if (obj is IndoorPot pot && pot.bush.Value != null)
                             {
                                 entity = this.GetEntityFor(location, tile, pot.bush.Value);
                                 if (entity != null)
-                                    return entity;
+                                    yield return entity;
                             }
                         }
                         break;
@@ -221,15 +232,15 @@ namespace Pathoschild.Stardew.Automate.Framework
                         {
                             IAutomatable? entity = this.GetEntityFor(location, tile, feature);
                             if (entity != null)
-                                return entity;
+                                yield return entity;
                         }
                         break;
 
                     case Building building:
                         {
-                            IAutomatable? entity = this.GetEntityFor((BuildableGameLocation)location, tile, building);
+                            IAutomatable? entity = this.GetEntityFor(location, tile, building);
                             if (entity != null)
-                                return entity;
+                                yield return entity;
                         }
                         break;
                 }
@@ -238,13 +249,9 @@ namespace Pathoschild.Stardew.Automate.Framework
             // from tile position
             foreach (IAutomationFactory factory in this.AutomationFactories)
             {
-                IAutomatable? entity = factory.GetForTile(location, tile);
-                if (entity != null)
-                    return entity;
+                if (this.TryGetEntityWithErrorHandling(location, tile, null, factory, p => p.GetForTile(location, tile), out IAutomatable? entity))
+                    yield return entity;
             }
-
-            // none found
-            return null;
         }
 
         /// <summary>Get a machine, container, or connector from the given object, if any.</summary>
@@ -255,8 +262,7 @@ namespace Pathoschild.Stardew.Automate.Framework
         {
             foreach (IAutomationFactory factory in this.AutomationFactories)
             {
-                IAutomatable? entity = factory.GetFor(obj, location, tile);
-                if (entity != null)
+                if (this.TryGetEntityWithErrorHandling(location, tile, obj, factory, p => p.GetFor(obj, location, tile), out IAutomatable? entity))
                     return entity;
             }
 
@@ -271,8 +277,7 @@ namespace Pathoschild.Stardew.Automate.Framework
         {
             foreach (IAutomationFactory factory in this.AutomationFactories)
             {
-                IAutomatable? entity = factory.GetFor(feature, location, tile);
-                if (entity != null)
+                if (this.TryGetEntityWithErrorHandling(location, tile, factory, factory, p => p.GetFor(feature, location, tile), out IAutomatable? entity))
                     return entity;
             }
 
@@ -283,16 +288,109 @@ namespace Pathoschild.Stardew.Automate.Framework
         /// <param name="location">The location to search.</param>
         /// <param name="tile">The tile to search.</param>
         /// <param name="building">The building to check.</param>
-        private IAutomatable? GetEntityFor(BuildableGameLocation location, Vector2 tile, Building building)
+        private IAutomatable? GetEntityFor(GameLocation location, Vector2 tile, Building building)
         {
             foreach (IAutomationFactory factory in this.AutomationFactories)
             {
-                IAutomatable? entity = factory.GetFor(building, location, tile);
-                if (entity != null)
+                if (this.TryGetEntityWithErrorHandling(location, tile, factory, factory, p => p.GetFor(building, location, tile), out IAutomatable? entity))
                     return entity;
             }
 
             return null;
+        }
+
+        /// <summary>Try to get a machine, container, or connector from an automation factory with error handling.</summary>
+        /// <param name="location">The location being searched.</param>
+        /// <param name="tile">The tile position being searched.</param>
+        /// <param name="fromEntity">The in-game entity being checked, or <c>null</c> if we're checking the title.</param>
+        /// <param name="factory">The automation factory being searched.s</param>
+        /// <param name="get">Get the result from the automation factory.</param>
+        /// <param name="entity">The result from the automation factory, or <c>null</c> if none was found.</param>
+        /// <returns>Returns whether an <paramref name="entity"/> was successfully found.</returns>
+        private bool TryGetEntityWithErrorHandling(GameLocation location, Vector2 tile, object? fromEntity, IAutomationFactory factory, Func<IAutomationFactory, IAutomatable?> get, [NotNullWhen(true)] out IAutomatable? entity)
+        {
+            try
+            {
+                entity = get(factory);
+                return entity != null;
+            }
+            catch (Exception ex)
+            {
+                StringBuilder error = new StringBuilder();
+
+                if (factory.GetType() == typeof(AutomationFactory))
+                    error.Append("Failed");
+                else
+                    error.Append("Custom automation factory [").Append(factory.GetType().FullName).Append("] failed");
+
+                error
+                    .Append(" getting machine for location [")
+                    .Append(location?.NameOrUniqueName ?? location?.GetType().FullName ?? "null location")
+                    .Append("] and tile (")
+                    .Append(tile.X)
+                    .Append(", ")
+                    .Append(tile.Y)
+                    .Append(")");
+
+                if (fromEntity != null)
+                {
+                    switch (fromEntity)
+                    {
+                        case Building building:
+                            error
+                                .Append(" and building [")
+                                .Append(building.buildingType.Value)
+                                .Append(']');
+                            break;
+
+                        case SObject obj:
+                            error
+                                .Append(" and object [")
+                                .Append(obj.QualifiedItemId)
+                                .Append("] (\"")
+                                .Append(obj.DisplayName)
+                                .Append("\")");
+                            break;
+
+                        case Tree tree:
+                            error
+                                .Append(" and tree [")
+                                .Append(tree.treeType.Value)
+                                .Append(']');
+                            break;
+
+                        case FruitTree tree:
+                            error
+                                .Append(" and fruit tree [")
+                                .Append(tree.treeId.Value)
+                                .Append(']');
+                            break;
+
+                        case TerrainFeature feature:
+                            error
+                                .Append(" and terrain feature type [")
+                                .Append(feature.GetType().FullName)
+                                .Append(']');
+                            break;
+
+                        default:
+                            error
+                                .Append(" and entity type [")
+                                .Append(fromEntity.GetType().FullName)
+                                .Append(']');
+                            break;
+                    }
+                }
+
+                error
+                    .AppendLine(". Technical details:")
+                    .Append(ex);
+
+                this.Monitor.Log(error.ToString(), LogLevel.Error);
+            }
+
+            entity = null;
+            return false;
         }
     }
 }

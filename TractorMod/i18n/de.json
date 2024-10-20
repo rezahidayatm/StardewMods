@@ -14,6 +14,7 @@
     ** Section titles
     ****/
     "config.main-options": "Hauptoptionen",
+    "config.audio": "Audio", // TODO
     "config.controls": "Steuerung",
     "config.axe": "Axteigenschaften",
     "config.hoe": "Hackeneigenschaften",
@@ -24,6 +25,13 @@
     "config.melee-sword": "Nahkampfschwert Eigenschaften",
     "config.other-tools": "Andere Tools",
     "config.custom-tools": "Benutzerdefinierte Tools",
+
+
+    /****
+    ** Warnings
+    ****/
+    // TODO
+    "config.questable-tractor-warning": "You have Questable Tractor installed. That mod works by overriding the tractor settings, so it may reset changes you make here.",
 
 
     /****
@@ -41,6 +49,10 @@
     "config.build-price.name": "Baupreis",
     "config.build-price.tooltip": "Der Goldpreis für den Kauf einer Traktor-Garage. Standard {{defaultValue}}g.",
 
+    // TODO
+    "config.require-build-materials.name": "Require Build Materials",
+    "config.require-build-materials.tooltip": "Whether you need to provide materials to build a tractor garage, in addition to the gold price.",
+
     "config.can-summon-without-garage.name": "Kann ohne Garage beschworen werden",
     "config.can-summon-without-garage.tooltip": "Ob man einen vorübergehenden Traktor herbeirufen kann, ohne vorher eine Garage zu bauen.",
 
@@ -49,6 +61,20 @@
 
     "config.highlight-radius.name": "Radius hervorheben (Debug)",
     "config.highlight-radius.tooltip": "Hervorhebung des Traktorradius bei der Fahrt, um die Entfernungsoption zu verdeutlichen.",
+
+
+    /****
+    ** Audio
+    ****/
+    "config.tractor-sounds.name": "Sound-Effekte",
+    "config.tractor-sounds.tooltip": "Welche Soundeffekte während der Fahrt mit dem Traktor abgespielt werden sollen. Die Änderungen werden möglicherweise erst nach dem erneuten Laden des Spielstands vollständig wirksam. Standard: {{defaultValue}}.",
+    "config.tractor-sounds.value.None": "Keine Geräusche",
+    "config.tractor-sounds.value.Horse": "Pferdegeräusche",
+    "config.tractor-sounds.value.Tractor": "Traktorgeräusche",
+
+    // TODO
+    "config.tractor-volume.name": "Sound Effects Volume",
+    "config.tractor-volume.tooltip": "The volume level for the tractor sound effects. Default {{defaultValue}}%.",
 
 
     /****
@@ -67,32 +93,40 @@
     /****
     ** Trees & bushes
     ****/
-    "config.chop-fruit-trees-seeds.name": "Obstbäume hacken (Saatgut)",
+    "config.chop-fruit-trees-seeds.name": "Obstbaumsamen entfernen",
     "config.chop-fruit-trees-seeds.tooltip": "Ob Obstbaumsamen entfernt werden sollen.",
 
-    "config.chop-fruit-trees-saplings.name": "Obstbäume hacken (Setzlinge)",
+    "config.chop-fruit-trees-saplings.name": "Obstbaumsetzlinge fällen",
     "config.chop-fruit-trees-saplings.tooltip": "Ob nicht ausgewachsene Obstbäume entfernt werden sollen.",
 
-    "config.chop-fruit-trees-grown.name": "Obstbäume hacken (ausgewachsen)",
+    "config.chop-fruit-trees-grown.name": "Obstbäume fällen (ausgewachsen)",
     "config.chop-fruit-trees-grown.tooltip": "Ob ausgewachsene Obstbäume gefällt werden sollen.",
 
-    "config.chop-trees-seeds.name": "Bäume hacken (Saatgut)",
+    "config.chop-trees-seeds.name": "Baumsamen entfernen",
     "config.chop-trees-seeds.tooltip": "Ob die Samen von Nicht-Obstbäumen entfernt werden sollen.",
 
-    "config.chop-trees-saplings.name": "Bäume hacken (Setzlinge)",
+    "config.chop-trees-saplings.name": "Baumsetzlinge fällen",
     "config.chop-trees-saplings.tooltip": "Ob nicht ausgewachsene Bäume, die keine Obstbäume sind, entfernt werden sollen.",
 
-    "config.chop-trees-grown.name": "Bäume hacken (ausgewachsen)",
+    "config.chop-trees-grown.name": "Bäume fällen (ausgewachsen)",
     "config.chop-trees-grown.tooltip": "Ob ausgewachsene Bäume, die keine Obstbäume sind, entfernt werden sollen.",
 
-    "config.chop-trees-stumps.name": "Bäume hacken (Stümpfe)",
+    "config.chop-trees-stumps.name": "Baumstümpfe entfernen",
     "config.chop-trees-stumps.tooltip": "Ob Stümpfe von Bäumen, die keine Obstbäume sind, entfernt werden sollen. (Dies gilt nicht für Riesenstümpfe, die als Schutt gelten).",
 
-    "config.chop-bushes.name": "Büsche hacken",
-    "config.chop-bushes.tooltip": "Ob Büsche geschnitten werden sollen, die gehackt werden können.",
+    "config.chop-bushes.name": "Büsche schneiden",
+    "config.chop-bushes.tooltip": "Ob Büsche geschnitten werden sollen, die abgeholzt werden können.",
 
     "config.harvest-fruit-trees.name": "Obstbäume ernten",
     "config.harvest-fruit-trees.tooltip": "Ob Obstbäume geerntet werden sollen.",
+
+    // TODO
+    "config.harvest-tree-moss.name": "Harvest Tree Moss",
+    "config.harvest-tree-moss.tooltip": "Whether to collect moss from trees.",
+
+    // TODO
+    "config.harvest-tree-seeds.name": "Harvest Tree Seeds",
+    "config.harvest-tree-seeds.tooltip": "Whether to collect seeds from trees.",
 
 
     /****
@@ -108,7 +142,7 @@
     "config.harvest-giant-crops.tooltip": "Ob riesige Pflanzen geerntet werden sollen.",
 
     "config.harvest-crops.name": "Ernten von Feldfrüchten",
-    "config.Harvest Crops.tooltip": "Ob Feldfrüchte geerntet werden sollen.",
+    "config.harvest-crops.tooltip": "Ob Feldfrüchte geerntet werden sollen.",
 
     "config.harvest-flowers.name": "Ernten von Blumen",
     "config.harvest-flowers.tooltip": "Ob Blumen geerntet werden sollen.",
@@ -116,8 +150,11 @@
     "config.harvest-forage.name": "Ernten von Viehfutter",
     "config.harvest-forage.tooltip": "Ob Viehfutter geerntet werden soll.",
 
-    "config.harvest-grass.name": "Gras mähen",
-    "config.harvest-grass.tooltip": "Ob Gras gemäht werden soll. Wenn freier Siloraum existiert, wird daraus wie üblich Heu. ",
+    "config.harvest-blue-grass.name": "Gras mähen (Blau)",
+    "config.harvest-blue-grass.tooltip": "Ob blaues Gras gemäht werden soll. Wenn freier Siloraum existiert, wird daraus wie üblich Heu.",
+
+    "config.harvest-non-blue-grass.name": "Gras mähen (Nicht Blau)",
+    "config.harvest-non-blue-grass.tooltip": "Ob nicht blaues Gras gemäht werden soll. Wenn freier Siloraum existiert, wird daraus wie üblich Heu.",
 
 
     /****
@@ -138,6 +175,10 @@
 
     "config.dig-artifact-spots.name": "Artefakt-Spots ausgraben",
     "config.dig-artifact-spots.tooltip": "Ob Artefaktstellen ausgegraben werden sollen.",
+
+    // TODO
+    "config.dig-seed-spots.name": "Dig Seed Spots",
+    "config.dig-seed-spots.tooltip": "Whether to dig up seed spots.",
 
     "config.clear-tilled-dirt.name": "Entferne gepflügten Dreck",
     "config.clear-tilled-dirt.tooltip": "Ob gepflügter Dreck entfernt werden soll",
@@ -172,8 +213,8 @@
     /****
     ** Melee
     ****/
-    "config.Attack-monsters.name": "Monster angreifen",
-    "config.Attack-monsters.tooltip": "Ob man Monster angreift. (Dies ist aufgrund der Geschwindigkeit des Traktorwerkzeugs extrem overpowered).",
+    "config.attack-monsters.name": "Monster angreifen",
+    "config.attack-monsters.tooltip": "Ob man Monster angreift. (Dies ist aufgrund der Geschwindigkeit des Traktorwerkzeugs extrem overpowered).",
 
 
     /****

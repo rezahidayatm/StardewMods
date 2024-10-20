@@ -62,7 +62,7 @@ namespace ContentPatcher.Framework.Lexing.LexTokens
             return this.InputArgs?.Parts.Length > 0;
         }
 
-        /// <summary>Get a text representation of the lexical token.</summary>
+        /// <inheritdoc cref="ILexToken.ToString" />
         public override string ToString()
         {
             return LexTokenToken.GetRawText(this.Name, this.InputArgs, this.ImpliedBraces);

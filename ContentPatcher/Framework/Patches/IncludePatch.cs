@@ -7,7 +7,9 @@ using ContentPatcher.Framework.Conditions;
 using ContentPatcher.Framework.ConfigModels;
 using ContentPatcher.Framework.Tokens;
 using StardewModdingAPI;
+using StardewModdingAPI.Events;
 using StardewModdingAPI.Utilities;
+using StardewValley.Extensions;
 
 namespace ContentPatcher.Framework.Patches
 {
@@ -43,7 +45,6 @@ namespace ContentPatcher.Framework.Patches
         /// <summary>Construct an instance.</summary>
         /// <param name="indexPath">The path of indexes from the root <c>content.json</c> to this patch; see <see cref="IPatch.IndexPath"/>.</param>
         /// <param name="path">The path to the patch from the root content file.</param>
-        /// <param name="assetName">The normalized asset name to intercept.</param>
         /// <param name="conditions">The conditions which determine whether this patch should be applied.</param>
         /// <param name="fromFile">The normalized asset key from which to load entries (if applicable), including tokens.</param>
         /// <param name="updateRate">When the patch should be updated.</param>
@@ -52,17 +53,20 @@ namespace ContentPatcher.Framework.Patches
         /// <param name="parseAssetName">Parse an asset name.</param>
         /// <param name="monitor">Encapsulates monitoring and logging.</param>
         /// <param name="patchLoader">Handles loading and unloading patches for content packs.</param>
-        public IncludePatch(int[] indexPath, LogPathBuilder path, IManagedTokenString? assetName, IEnumerable<Condition> conditions, IManagedTokenString fromFile, UpdateRate updateRate, RawContentPack contentPack, IPatch? parentPatch, Func<string, IAssetName> parseAssetName, IMonitor monitor, PatchLoader patchLoader)
+        public IncludePatch(int[] indexPath, LogPathBuilder path, IEnumerable<Condition> conditions, IManagedTokenString fromFile, UpdateRate updateRate, RawContentPack contentPack, IPatch? parentPatch, Func<string, IAssetName> parseAssetName, IMonitor monitor, PatchLoader patchLoader)
             : base(
                 indexPath: indexPath,
                 path: path,
                 type: PatchType.Include,
-                assetName: assetName,
+                assetName: null,
+                assetLocale: null,
+                priority: (int)AssetEditPriority.Default,
+                updateRate: updateRate,
                 conditions: conditions,
                 fromAsset: fromFile,
-                updateRate: updateRate,
                 parentPatch: parentPatch,
                 contentPack: contentPack.ContentPack,
+                migrator: contentPack.Migrator,
                 parseAssetName: parseAssetName
             )
         {
@@ -85,6 +89,14 @@ namespace ContentPatcher.Framework.Patches
                 this.PatchLoader.UnloadPatchesLoadedBy(this);
 
             // load new patches
+            this.AttemptLoad();
+
+            return this.MarkUpdated();
+        }
+
+        /// <summary>Load the patches in the include file, if the patch is ready.</summary>
+        public void AttemptLoad()
+        {
             this.AttemptedDataLoad = this.IsReady && this.Conditions.All(p => p.IsMatch);
             this.IsApplied = false;
             if (this.AttemptedDataLoad)
@@ -95,12 +107,12 @@ namespace ContentPatcher.Framework.Patches
                     if (!this.FromAssetExists())
                     {
                         this.WarnForPatch($"file '{this.FromAsset}' doesn't exist.");
-                        return this.MarkUpdated();
+                        return;
                     }
 
                     // prevent circular reference
                     {
-                        List<string> loopPaths = new List<string>();
+                        List<string> loopPaths = [];
                         for (IPatch? parent = this.ParentPatch; parent != null; parent = parent.ParentPatch)
                         {
                             if (parent.Type == PatchType.Include)
@@ -112,7 +124,7 @@ namespace ContentPatcher.Framework.Patches
                                     loopPaths.Add(this.FromAsset);
 
                                     this.WarnForPatch($"patch skipped because it would cause an infinite loop ({string.Join(" > ", loopPaths)}).");
-                                    return this.MarkUpdated();
+                                    return;
                                 }
                             }
                         }
@@ -123,7 +135,7 @@ namespace ContentPatcher.Framework.Patches
                     if (!content.Changes.Any())
                     {
                         this.WarnForPatch($"file '{this.FromAsset}' doesn't have anything in the {nameof(content.Changes)} field. Is the file formatted correctly?");
-                        return this.MarkUpdated();
+                        return;
                     }
 
                     // validate fields
@@ -131,7 +143,7 @@ namespace ContentPatcher.Framework.Patches
                     if (invalidFields.Any())
                     {
                         this.WarnForPatch($"file contains fields which aren't allowed for a secondary file ({string.Join(", ", invalidFields.OrderByHuman())}).");
-                        return this.MarkUpdated();
+                        return;
                     }
 
                     // load patches
@@ -147,17 +159,15 @@ namespace ContentPatcher.Framework.Patches
                 catch (Exception ex)
                 {
                     this.WarnForPatch($"an error occurred.\n{ex}", LogLevel.Error);
-                    return this.MarkUpdated();
+                    return;
                 }
             }
-
-            return this.MarkUpdated();
         }
 
         /// <inheritdoc />
         public override IEnumerable<string> GetChangeLabels()
         {
-            return Array.Empty<string>();
+            return [];
         }
 
 

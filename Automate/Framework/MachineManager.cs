@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using Pathoschild.Stardew.Automate.Framework.Models;
 using Pathoschild.Stardew.Common;
-using Pathoschild.Stardew.Common.Utilities;
 using StardewModdingAPI;
 using StardewValley;
+using StardewValley.Extensions;
 
 namespace Pathoschild.Stardew.Automate.Framework
 {
@@ -28,10 +28,10 @@ namespace Pathoschild.Stardew.Automate.Framework
         private readonly Dictionary<string, MachineDataForLocation> MachineData = new();
 
         /// <summary>The cached machines to process.</summary>
-        private IMachineGroup[] ActiveMachineGroups = Array.Empty<IMachineGroup>();
+        private IMachineGroup[] ActiveMachineGroups = [];
 
         /// <summary>The cached disabled machine groups (e.g. machines not connected to a chest).</summary>
-        private IMachineGroup[] DisabledMachineGroups = Array.Empty<IMachineGroup>();
+        private IMachineGroup[] DisabledMachineGroups = [];
 
         /// <summary>The locations that should be removed on the next update tick.</summary>
         private readonly HashSet<GameLocation> RemoveQueue = new(new GameLocationNameComparer());
@@ -64,10 +64,10 @@ namespace Pathoschild.Stardew.Automate.Framework
             this.Data = data;
             this.Monitor = monitor;
 
-            this.Factory = new(this.GetMachineOverride, this.BuildStorage);
+            this.Factory = new(this.GetMachineOverride, this.BuildStorage, monitor);
             this.Factory.Add(defaultFactory);
 
-            this.JunimoMachineGroup = new(this.Factory.SortMachines, this.BuildStorage);
+            this.JunimoMachineGroup = new(this.Factory.SortMachines, this.BuildStorage, this.Monitor);
         }
 
         /****
@@ -139,8 +139,8 @@ namespace Pathoschild.Stardew.Automate.Framework
         public void Clear()
         {
             this.MachineData.Clear();
-            this.ActiveMachineGroups = Array.Empty<IMachineGroup>();
-            this.DisabledMachineGroups = Array.Empty<IMachineGroup>();
+            this.ActiveMachineGroups = [];
+            this.DisabledMachineGroups = [];
             this.JunimoMachineGroup.Clear();
         }
 
@@ -151,14 +151,14 @@ namespace Pathoschild.Stardew.Automate.Framework
 
             this.JunimoMachineGroup.Rebuild();
 
-            this.ReloadQueue.AddMany(CommonHelper.GetLocations());
+            this.ReloadQueue.AddRange(CommonHelper.GetLocations());
         }
 
         /// <summary>Queue locations to remove and whose machines should be reloaded when <see cref="ReloadQueuedLocations"/> is called.</summary>
         /// <param name="locations">The locations to remove.</param>
         public void QueueRemove(IEnumerable<GameLocation> locations)
         {
-            this.RemoveQueue.AddMany(locations);
+            this.RemoveQueue.AddRange(locations);
         }
 
         /// <summary>Queue a location for which to reload machines when <see cref="ReloadQueuedLocations"/> is called.</summary>
@@ -179,7 +179,7 @@ namespace Pathoschild.Stardew.Automate.Framework
         /// <param name="locations">The locations to reload.</param>
         public void QueueReload(IEnumerable<GameLocation> locations)
         {
-            this.ReloadQueue.AddMany(locations);
+            this.ReloadQueue.AddRange(locations);
         }
 
         /// <summary>Reload any locations queued for reload.</summary>
@@ -218,7 +218,7 @@ namespace Pathoschild.Stardew.Automate.Framework
 
             // remove old groups
             {
-                HashSet<string> locationKeys = new(locations.Concat(removedLocations).Select(this.Factory.GetLocationKey));
+                HashSet<string> locationKeys = [.. locations.Concat(removedLocations).Select(this.Factory.GetLocationKey)];
                 if (this.Monitor.IsVerbose)
                     this.Monitor.Log($"Reloading machines in {locationKeys.Count} locations: {string.Join(", ", locationKeys)}...");
 
@@ -238,9 +238,9 @@ namespace Pathoschild.Stardew.Automate.Framework
                 string locationKey = this.Factory.GetLocationKey(location);
 
                 // collect new groups
-                List<IMachineGroup> active = new();
-                List<IMachineGroup> disabled = new();
-                List<IMachineGroup> junimo = new();
+                List<IMachineGroup> active = [];
+                List<IMachineGroup> disabled = [];
+                List<IMachineGroup> junimo = [];
                 foreach (IMachineGroup group in this.Factory.GetMachineGroups(location, this.Monitor))
                 {
                     if (!group.HasInternalAutomation)
@@ -270,8 +270,8 @@ namespace Pathoschild.Stardew.Automate.Framework
             // rebuild caches
             if (anyChanged)
             {
-                List<IMachineGroup> active = new();
-                List<IMachineGroup> disabled = new();
+                List<IMachineGroup> active = [];
+                List<IMachineGroup> disabled = [];
 
                 foreach (MachineDataForLocation locationData in this.MachineData.Values)
                 {

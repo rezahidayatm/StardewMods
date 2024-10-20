@@ -7,10 +7,10 @@ using StardewValley.Tools;
 namespace Pathoschild.Stardew.FastAnimations.Handlers
 {
     /// <summary>Handles the slingshot draw animation.</summary>
-    internal class SlingshotHandler : BaseAnimationHandler
+    internal sealed class SlingshotHandler : BaseAnimationHandler
     {
         /*********
-        ** Public methods
+        ** Fields
         *********/
         /// <summary>The <see cref="GameTime.TotalGameTime"/> in milliseconds when the handler started skipping the current animation.</summary>
         private int LastPullStartTime;
@@ -25,39 +25,29 @@ namespace Pathoschild.Stardew.FastAnimations.Handlers
         /*********
         ** Public methods
         *********/
-        /// <summary>Construct an instance.</summary>
-        /// <param name="multiplier">The animation speed multiplier to apply.</param>
+        /// <inheritdoc />
         public SlingshotHandler(float multiplier)
             : base(multiplier) { }
 
-        /// <summary>Get whether the animation is currently active.</summary>
-        /// <param name="playerAnimationID">The player's current animation ID.</param>
-        public override bool IsEnabled(int playerAnimationID)
+        /// <inheritdoc />
+        public override bool TryApply(int playerAnimationId)
         {
-            return
-                Game1.player.UsingTool
-                && Game1.player.CurrentTool is Slingshot;
-        }
+            Farmer player = Game1.player;
 
-        /// <summary>Perform any logic needed on update while the animation is active.</summary>
-        /// <param name="playerAnimationID">The player's current animation ID.</param>
-        public override void Update(int playerAnimationID)
-        {
-            Slingshot slingshot = (Slingshot)Game1.player.CurrentTool;
-
-            // start new animation
+            if (player.CurrentTool is Slingshot slingshot && this.IsAnimating(player, slingshot))
             {
-                int startedSkipAt = (int)slingshot.pullStartTime;
-                if (startedSkipAt != this.LastPullStartTime)
+                // start new animation
                 {
-                    this.LastPullStartTime = startedSkipAt;
-                    this.SkippedMilliseconds = 0;
+                    int startedSkipAt = (int)slingshot.pullStartTime;
+                    if (startedSkipAt != this.LastPullStartTime)
+                    {
+                        this.LastPullStartTime = startedSkipAt;
+                        this.SkippedMilliseconds = 0;
+                    }
                 }
-            }
 
-            // apply skips
-            this.ApplySkips(
-                run: () =>
+                // apply skips
+                this.ApplySkipsWhile(() =>
                 {
                     slingshot.pullStartTime -= SlingshotHandler.MillisecondsPerSkip;
                     this.LastPullStartTime = (int)slingshot.pullStartTime;
@@ -66,10 +56,29 @@ namespace Pathoschild.Stardew.FastAnimations.Handlers
                     TimeSpan skippedTime = TimeSpan.FromMilliseconds(this.SkippedMilliseconds);
                     GameTime time = new GameTime(Game1.currentGameTime.TotalGameTime.Add(skippedTime), Game1.currentGameTime.ElapsedGameTime.Add(skippedTime), Game1.currentGameTime.IsRunningSlowly);
 
-                    Game1.player.CurrentTool.tickUpdate(time, Game1.player);
-                },
-                until: () => !this.IsEnabled(-1)
-            );
+                    player.CurrentTool.tickUpdate(time, player);
+
+                    return this.IsAnimating(player, slingshot);
+                });
+
+                return true;
+            }
+
+            return false;
+        }
+
+
+        /*********
+        ** Private methods
+        *********/
+        /// <summary>Get whether the target animation is playing.</summary>
+        /// <param name="player">The player to check.</param>
+        /// <param name="slingshot">The slingshot to check.</param>
+        private bool IsAnimating(Farmer player, Slingshot slingshot)
+        {
+            return
+                player.UsingTool
+                && slingshot.pullStartTime > SlingshotHandler.MillisecondsPerSkip; // don't decrement past zero, which will disable firing
         }
     }
 }

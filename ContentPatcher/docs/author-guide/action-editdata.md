@@ -4,9 +4,10 @@ A patch with **`"Action": "EditData"`** edits fields and entries inside a data a
 content packs can edit the same asset.
 
 ## Contents
-* [Introduction](#introduction)
-  * [What is a data asset?](#data-assets)
-  * [What is an entry?](#entries)
+* [Basic concepts](#basic-concepts)
+  * [Data assets](#data-assets)
+  * [Entries and fields](#entries)
+  * [Target fields](#target-fields)
 * [Usage](#usage)
   * [Overview](#overview)
   * [Edit a dictionary](#edit-a-dictionary)
@@ -15,15 +16,20 @@ content packs can edit the same asset.
   * [Combining operations](#combining-operations)
 * [Target field](#target-field)
   * [Format](#format)
-  * [Example](#example)
+  * [Examples](#examples)
 * [See also](#see-also)
 
-## Introduction
-### What is a data asset?<span id="data-assets"></span>
-A _data asset_ contains information loaded by the game: events, dialogue, item info, etc. The
-[format for many assets is documented on the wiki](https://stardewvalleywiki.com/Modding:Index#Advanced_topics).
+## Basic concepts
+The game has many types of data, which Content Patcher abstracts into a few common concepts.
+The rest of this page will make much more sense once you understand the concepts explained in this
+section, so don't skip it!
 
-There are three types of asset:
+### Data assets
+A _data asset_ contains info loaded by the game from a content file: events for a location,
+dialogue for an NPC, etc. For example, `Data/Objects` is an asset which has info for many items in
+the game. The [format for many assets is documented on the wiki](https://stardewvalleywiki.com/Modding:Index#Advanced_topics).
+
+There are three main types of asset:
 
 <table>
 <tr>
@@ -34,14 +40,14 @@ There are three types of asset:
 <td>dictionary</td>
 <td>
 
-A _dictionary_ is a list of key/value pairs, where the key is unique within the list. The key is
-always an integer or string, but the value can be any data type.
+A _dictionary_ is a list of key/value pairs, where the key is unique within the list. These are
+surrounded by `{` and `}`.
 
 For example, `Data/Boots` is a dictionary of strings:
 
 ```js
 {
-    // "key": value
+    // format is "key": "value"
     "504": "Sneakers/A little flimsy... but fashionable!/50/1/0/0/Sneakers",
     "505": "Rubber Boots/Protection from the elements./50/0/1/1/Rubber Boots",
     "506": "Leather Boots/The leather is very supple./50/1/1/2/Leather Boots"
@@ -82,40 +88,59 @@ can be used as the key (see [_edit a list_](#edit-a-list)).
 <td>model</td>
 <td>
 
-A _model_ is a predefined data structure. For content packs, it's essentially identical to a
-dictionary except that you can't add new entries (only edit existing ones).
+A _model_ is a predefined data structure. For content packs, it's identical to a dictionary except
+that you can't add new entries (only edit existing ones).
 
 </td>
 </tr>
 </table>
 
-### What is an entry?<span id="entries"></span>
-An _entry_ is a key/value pair in a dictionary, or a value in a list. The key is always a number or
-string.
+### Entries and fields<span id="entries"></span>
+An _entry_ is a top-level block of data in the target data (i.e. a key/value pair in a dictionary
+or a value in a list).
 
-For example, each line in `Data/Boots` is an entry (where the number before the colon is the key,
-and the string after it is the value):
+For example, in this snippet from `Data/Objects`, `"MossSoup": { ...}` and `"PetLicense": { ... }`
+are two separate entries:
 ```js
 {
-    "504": "Sneakers/A little flimsy... but fashionable!/50/1/0/0/Sneakers",
-    "505": "Rubber Boots/Protection from the elements./50/0/1/1/Rubber Boots"
+    "MossSoup": {
+        "Name": "Moss Soup",
+        "Type": "Cooking",
+        "Category": -7,
+        "Price": 80,
+        "ContextTags": [ "color_green" ]
+        ...
+    },
+    "PetLicense": {
+        "Name": "Pet License",
+        "Type": "Basic",
+        "Category": 0,
+        "Price": 0,
+        ...
+    },
+    ...
 }
 ```
 
-That also applies to data models. For example, this is one entry from `Data/Movies`:
-```js
-"fall_movie_0": {
-    "ID": null,
-    "SheetIndex": 1,
-    "Title": "Mysterium",
-    "Description": "Peer behind the midnight veil... You must experience to believe!",
-    "Tags": [ "horror", "art" ],
-    "Scenes": [ /* omitted for brevity */ ]
-}
-```
+A _field_ is a sub-block of data inside an entry. In the previous example:
+- `"MossSoup": { ... }` is an entry;
+- `"Name": "Moss Soup"` is a field inside the `"MossSoup": { ... }` entry.
 
-A _field_ is just an entry directly within an entry. In the previous example, `"SheetIndex": 1` is
-a field.
+### Target fields
+In the previous section, we said that an entry is "_a top-level block of data in the target data_".
+A target field lets you change what "target data" means.
+
+For example, let's say we set the target field to the `ContextTags` field above. Then the data your
+patch sees is this:
+```json
+[ "color_green" ]
+```
+/
+That means each value in the `ContextTags` is now an entry, so you can add/replace/remove context
+tags without editing the rest of the object data.
+
+(This is covered in more detail under [_Target field_](#target-field) below.)
+
 
 ## Usage
 ### Overview
@@ -158,7 +183,7 @@ just specify a key that doesn't exist; to delete an entry, set the value to `nul
 `"some key": null`). This field supports [tokens](../author-guide.md#tokens) in entry keys and
 values.
 
-For list values, see also `MoveEntries`.
+For list values, see also `MoveEntries` below.
 
 </td>
 </tr>
@@ -167,6 +192,8 @@ For list values, see also `MoveEntries`.
 
 _(List assets only)_ Change the entry order in a list asset like `Data/MoviesReactions`. (Using
 this with a non-list asset will cause an error, since those have no order.)
+
+See [_moving list entries_](#moving-list-entries) for more info.
 
 </td>
 </tr>
@@ -195,48 +222,105 @@ only target top-level fields.
 
 field         | purpose
 ------------- | -------
-`TargetField` | When targeting a [list or dictionary](#data-assets), the field within the value to set as the root scope; see [_target field_](#target-field) below. This field supports [tokens](../author-guide.md#tokens).
+`TargetField` | _(optional)_ When targeting a [list or dictionary](#data-assets), the field within the value to set as the root scope; see [_target field_](#target-field) below. This field supports [tokens](../author-guide.md#tokens).
 `When`        | _(optional)_ Only apply the patch if the given [conditions](../author-guide.md#conditions) match.
-`LogName`     | _(optional)_ A name for this patch to show in log messages. This is useful for understanding errors; if not specified, it'll default to a name like `entry #14 (EditImage Animals/Dinosaurs)`.
+`LogName`     | _(optional)_ A name for this patch to show in log messages. This can be useful for understanding errors. If omitted, it defaults to a name like `EditData Data/Achievements`.
 `Update`      | _(optional)_ How often the patch fields should be updated for token changes. See [update rate](../author-guide.md#update-rate) for more info.
 
+</dd>
+<dt>Advanced fields:</dt>
+<dd>
+
+<table>
+  <tr>
+    <td>field</td>
+    <td>purpose</td>
+  </tr>
+  <tr>
+  <td><code>Priority</code></td>
+  <td>
+
+_(optional)_ When multiple patches or mods edit the same asset, the order in which they should be
+applied. The possible values are `Early`, `Default`, and `Late`. The default value is `Default`.
+
+The patches for an asset (across all mods) are applied in this order:
+
+1. by earliest to latest priority;
+2. then by mod load order (e.g. based on dependencies);
+3. then by the order the patches are listed in your `content.json`.
+
+If you need a more specific order, you can use a simple offset like `"Default + 2"` or `"Late - 10"`.
+The default levels are -1000 (early), 0 (default), and 1000 (late).
+
+This field does _not_ support tokens, and capitalization doesn't matter.
+
+> [!TIP]
+> Priorities can make your changes harder to follow and troubleshoot. Suggested best practices:
+> * Consider only using very general priorities when possible (like `Late` for a cosmetic overlay
+>   meant to be applied over base edits from all mods).
+> * There's no need to set priorities relative to _your own_ patches, since you can just list them
+>   in the order they should be applied.
+
+  </tr>
+  <tr>
+  <td><code>TargetLocale</code></td>
+  <td>
+
+_(optional)_ The locale code to match in the asset name. For example, setting `"TargetLocale": "fr-FR"`
+will only edit the French localized form of the asset (e.g. `Data/Achievements.fr-FR`). This can be
+an empty string to only edit the base unlocalized asset.
+
+If omitted, it's applied to all localized and unlocalized variants of the asset.
+
+</td>
+</table>
 </dd>
 </dl>
 
 ### Edit a dictionary
 The simplest edit for a [dictionary](#data-assets) is to create or overwrite an entry. For
-example, this adds an item to `Data/ObjectInformation` (with the key `900`):
+example, this [adds a new item](https://stardewvalleywiki.com/Modding:Items) with the ID
+`{{ModId}}_Pufferchick` to `Data/Objects`:
 
 ```js
 {
-    "Format": "1.29.0",
+    "Format": "2.3.0",
     "Changes": [
         {
             "Action": "EditData",
-            "Target": "Data/ObjectInformation",
+            "Target": "Data/Objects",
             "Entries": {
-                "900": "Pufferchick/1200/100/Seeds -74/Pufferchick/An example object."
-            }
-        },
+                "{{ModId}}_Pufferchick": {
+                    "Name": "{{ModId}}_Pufferchick",
+                    "DisplayName": "Pufferchick",
+                    "Description": "An example object.",
+                    "Type": "Seeds",
+                    "Category": -74,
+                    "Price": 1200,
+                    "Texture": "Mods/{{ModId}}/Objects"
+                }
+            },
+        }
     ]
 }
 ```
 
 You can also edit a field within the entry. When the entry's value is a string, the value is
 assumed to be a slash-delimited list of fields (each assigned a number starting at zero); otherwise
-fields are entries directly within the given entry. For example, this edits the description field
-for an item:
+fields are entries directly within the given entry.
+
+For example, this edits the description field for an item:
 
 ```js
 {
-    "Format": "1.29.0",
+    "Format": "2.3.0",
     "Changes": [
         {
             "Action": "EditData",
-            "Target": "Data/ObjectInformation",
+            "Target": "Data/Objects",
             "Fields": {
-                "128": { // entry 128 (pufferfish)
-                    5: "Weirdly similar to a pufferchick." // field 5 (description)
+                "MossSoup": { // entry with ID 'MossSoup'
+                    "Description": "Maybe a pufferchick would like this."
                 }
             }
         },
@@ -248,7 +332,7 @@ You can also delete an entry by setting its value to `null`. For example, this d
 recreate it with different conditions:
 ```js
 {
-    "Format": "1.29.0",
+    "Format": "2.3.0",
     "Changes": [
         {
             "Action": "EditData",
@@ -266,34 +350,72 @@ When the value has nested entries, you can use [`TargetField`](#target-field) to
 one.
 
 ### Edit a list
-You can edit a [list](#data-assets) the same way too, with a few caveats.
+You can edit a [list](#data-assets) the same way too.
 
-Although there's no unique key, you can still use the `Entries` field to target a specific entry as
-if it did. Content Patcher will find the entry based on a unique value in the data model:
+Lists don't have keys in the original asset, but they still have a 'key' in Content Patcher which
+identifies each entry for features like `Entries` and `MoveEntries`. In other words, the patch to
+edit a list looks just like one to edit a dictionary above.
 
-asset | field used as the key
------ | ---------------------
-_default_ | `Id` or `ID` if it exists.
-`Data/ConcessionTastes` | `Name`
-`Data/FishPondData` | The `RequiredTags` field with comma-separated tags (like `fish_ocean,fish_crab_pot`). The key is space-sensitive.
-`Data/MoviesReactions` | `NPCName`
-`Data/RandomBundles` | `AreaName`
-`Data/TailoringRecipes` | `FirstItemTags` and `SecondItemTags`, with comma-separated tags and a pipe between them (like <code>item_cloth&#124;category_fish,fish_semi_rare</code>). The key is space-sensitive.
+For a list of models (blocks of `{ ... }`), the key is the `Id` field within each model. For
+example, this snippet from `Data\LocationContexts` shows one `Music` entry whose ID is `spring1`:
+```js
+{
+    "Default": {
+        "SeasonOverride": null,
+        "DefaultMusic": null,
+        "DefaultMusicCondition": null,
+        "DefaultMusicDelayOneScreen": true,
+        "Music": [
+            {
+                "Id": "spring1",
+                "Track": "spring1",
+                "Condition": "SEASON Spring"
+            }
+            ...
+        ]
+    }
+}
+```
 
+To edit that music entry in a content pack, you'd use the ID as the key. For example:
+```js
+{
+    "Format": "2.3.0",
+    "Changes": [
+        {
+            "Action": "EditData",
+            "Target": "Data/LocationContexts",
+            "TargetField": [ "Default", "Music" ],
+            "Entries": {
+                "spring1": {
+                    "Id": "spring1",
+                    "Track": "spring1",
+                    "Condition": "SEASON Spring, YEAR 2"
+                }
+            }
+        }
+    ]
+}
+```
+
+Editing a list of simple strings works exactly the same way, except that the string itself is the
+key. See the [example for editing object context tags](#edit-object-context-tags) below.
+
+### Moving list entries
 The order is often important for list assets (e.g. the game will use the first entry in
 `Data\MoviesReactions` that matches the NPC it's checking). You can change the order using the
 `MoveEntries` field. For example, this moves the `Abigail` entry using each possible operation:
 ```js
 {
-    "Format": "1.29.0",
+    "Format": "2.3.0",
     "Changes": [
         {
             "Action": "EditData",
             "Target": "Data/MoviesReactions",
             "MoveEntries": [
-                { "ID": "Abigail", "BeforeID": "Leah" }, // move entry so it's right before Leah
-                { "ID": "Abigail", "AfterID": "Leah" }, // move entry so it's right after Leah
-                { "ID": "Abigail", "ToPosition": "Top" }, // move entry to the top of the list
+                { "ID": "Abigail", "BeforeID": "Leah" },     // move entry so it's right before Leah
+                { "ID": "Abigail", "AfterID": "Leah" },      // move entry so it's right after Leah
+                { "ID": "Abigail", "ToPosition": "Top" },    // move entry to the top of the list
                 { "ID": "Abigail", "ToPosition": "Bottom" }, // move entry to the bottom of the list
             ]
         },
@@ -313,92 +435,111 @@ entry and then move it into the right order at the same time. They'll be applied
 `Entries`, `Fields`, `MoveEntries`, and `TextOperations`.
 
 ## Target field
-Your changes normally apply to the top-level entries, but `TargetField` lets you apply changes to a
-nested subset of the entry instead. For example, you can change one field within a field within the
-entry.
-
-This affects all of the change fields (e.g. `Fields`, `Entries`, `TextOperations`, etc).
+Your changes normally apply to the top-level entries, but `TargetField` lets you choose a sub-block
+of data to edit instead. This affects all of the edit patch options (e.g. `Fields`, `Entries`,
+`TextOperations`, etc).
 
 ### Format
-`TargetField` describes a path to 'drill into' relative to the entire data asset.
+`TargetField` is a list of field names to 'drill into' (see examples below). Each value in the list
+is within the previous value, and can be one of these:
 
-For example, `"TargetField": [ "Crafts Room", "BundleSets", "#0", "Bundles", "#0" ]` will...
-1. select the `Crafts Room` entry;
-2. select the `BundleSets` field on that entry;
-3. select the first bundle set in that `BundleSets` field;
-3. select the `Bundles` field on that bundle set;
-4. and select the first value in that `Bundles` array.
+type       | effect
+---------- | ------
+ID         | A [dictionary key](#edit-a-dictionary) or [list key](#edit-a-list) within the data (e.g. `"Goby"` in the example below).
+field name | The name of a field on a data model.
+list value | For a simple list of strings or values, the value to target (see examples below).
+list index | The position of a value within the list (like `#0` for the first value). This must be prefixed with `#`, otherwise it'll be treated as an ID instead. This is fragile since it depends on the list order not changing from what you expect; consider using an ID or field name instead when possible.
 
-At that point any changes will be applied within the selected value, instead of the entire model.
-
-Each value in the list can be one of these:
-
-type        | effect
------------ | ------
-ID          | A dictionary key or [list key](#edit-a-list) within a dictionary/list (e.g. `"Crafts Room"` in the example below).
-field name  | The name of a field on the data model (e.g. `"BundleSets"` and `"Bundles"` in the example below).
-array index | The position of a value within the list (e.g. `#0` in the example below). This must be prefixed with `#`, otherwise it'll be treated as an ID instead.
-
-### Example
-The `Data/RandomBundles` asset has entries like this:
+### Examples
+#### Edit object context tags
+The `Data/Objects` asset has entries like this:
 ```js
-[
-    {
-        "AreaName": "Crafts Room",
-        "Keys": "13 14 15 16 17 19",
-        "BundleSets": [
-            {
-                "Bundles": [
-                    {
-                        "Name": "Spring Foraging",
-                        "Index": 0,
-                        "Sprite": "13",
-                        "Color": "Green",
-                        "Items": "1 Wild Horseradish, 1 Daffodil, 1 Leek, 1 Dandelion, 1 Spring Onion",
-                        "Pick": 4,
-                        "RequiredItems": -1,
-                        "Reward": "30 Spring Seeds"
-                    },
-                    ...
-                ]
-            }
-        ],
-        ...
-    }
-]
+"Goby": {
+    "Name": "Goby",
+    "Type": "Fish",
+    "ContextTags": [ "color_brown", "fish_river", "season_fall", "season_spring", "season_summer" ]
+    ...
+},
 ```
 
-Using `TargetField`, you can edit the bundle reward within the entry without needing to redefine
-the entire entry:
+Let's say we want to change the context tags, without redefining the whole item or losing changes
+from other mods. We can do that with `"TargetField": [ "Goby", "ContextTags" ]`, so the patch now
+applies to this data:
+```json
+[ "color_brown", "fish_river", "season_fall", "season_spring", "season_summer" ]
+```
 
+Then we can add, replace, or remove entries within that list as if it was a data asset:
 ```js
 {
-    "Format": "1.29.0",
+    "Format": "2.3.0",
     "Changes": [
         {
             "Action": "EditData",
-            "Target": "Data/RandomBundles",
-            "TargetField": [ "Crafts Room", "BundleSets", "#0", "Bundles", "#0" ],
+            "Target": "Data/Objects",
+            "TargetField": [ "Goby", "ContextTags" ],
             "Entries": {
-                "Reward": "60 Spring Seeds" // double normal reward
+                "season_winter": "season_winter", // add a value
+                "season_spring": null,            // remove a value
+                "color_brown": "color_green"      // replace a value
             }
         },
     ]
 }
 ```
 
-The `TargetField` sets the selected value as the scope, so the rest of the fields work as if the
-entire data asset looked like this:
-```js
+#### Edit a deeply nested field
+The above example edited a field at the top of the model, but we can drill down to an arbitrary
+depth.
+
+For example, consider this entry in `Data/Objects`:
+```json
+"791": {
+    "Name": "Golden Coconut",
+    "GeodeDrops": [
+        {
+            "Id": "Default",
+            "RandomItemId": [ "(O)69", "(O)835", "(O)833", "(O)831", "(O)820", "(O)292", "(O)386" ],
+            "StackModifiers": [
+                {
+                    "Id": "PineappleSeeds",
+                    "Condition": "ITEM_ID Target (O)833",
+                    "Modification": "Set",
+                    "Amount": 5
+                },
+                ...
+            ],
+            ...
+        }
+    ]
+}
+```
+
+Let's say we want to change pineapple seeds to drop 20 instead of 5. Let's look at the hierarchy of
+those fields:
+
+* entry: `791`
+  * field: `GeodeDrops`
+    * list value with ID: `Default`
+      * field: `StackModifiers`
+        * list value with ID: `PineappleSeeds`
+          * field: `Amount`
+
+So we just need to 'drill down' that hierarchy to edit the field we want:
+
+```json
 {
-    "Name": "Spring Foraging",
-    "Index": 0,
-    "Sprite": "13",
-    "Color": "Green",
-    "Items": "1 Wild Horseradish, 1 Daffodil, 1 Leek, 1 Dandelion, 1 Spring Onion",
-    "Pick": 4,
-    "RequiredItems": -1,
-    "Reward": "30 Spring Seeds"
+    "Format": "2.3.0",
+    "Changes": [
+        {
+            "Action": "EditData",
+            "Target": "Data/Objects",
+            "TargetField": [ "791", "GeodeDrops", "Default", "StackModifiers", "PineappleSeeds" ],
+            "Entries": {
+                "Amount": 20
+            }
+        }
+    ]
 }
 ```
 

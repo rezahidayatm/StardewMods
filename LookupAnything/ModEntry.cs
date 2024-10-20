@@ -7,7 +7,6 @@ using System.Text;
 using Microsoft.Xna.Framework;
 using Newtonsoft.Json.Linq;
 using Pathoschild.Stardew.Common;
-using Pathoschild.Stardew.Common.Integrations.JsonAssets;
 using Pathoschild.Stardew.LookupAnything.Components;
 using Pathoschild.Stardew.LookupAnything.Framework;
 using Pathoschild.Stardew.LookupAnything.Framework.Lookups;
@@ -66,8 +65,7 @@ namespace Pathoschild.Stardew.LookupAnything
         /*********
         ** Public methods
         *********/
-        /// <summary>The mod entry point, called after the mod is first loaded.</summary>
-        /// <param name="helper">Provides methods for interacting with the mod directory, such as read/writing a config file or custom JSON files.</param>
+        /// <inheritdoc />
         public override void Entry(IModHelper helper)
         {
             CommonHelper.RemoveObsoleteFiles(this, "LookupAnything.pdb"); // removed in 1.40.0
@@ -106,20 +104,15 @@ namespace Pathoschild.Stardew.LookupAnything
         /****
         ** Event handlers
         ****/
-        /// <inheritdoc cref="IGameLoopEvents.GameLaunched"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IGameLoopEvents.GameLaunched" />
         private void OnGameLaunched(object? sender, GameLaunchedEventArgs e)
         {
             if (!this.IsDataValid)
                 return;
 
-            // get mod APIs
-            JsonAssetsIntegration jsonAssets = new JsonAssetsIntegration(this.Helper.ModRegistry, this.Monitor);
-
             // initialize functionality
             this.GameHelper = new GameHelper(this.Metadata, this.Monitor, this.Helper.ModRegistry, this.Helper.Reflection);
-            this.TargetFactory = new TargetFactory(this.Helper.Reflection, this.GameHelper, () => this.Config, jsonAssets, () => this.Config.EnableTileLookups);
+            this.TargetFactory = new TargetFactory(this.Helper.Reflection, this.GameHelper, () => this.Config, () => this.Config.EnableTileLookups);
             this.DebugInterface = new PerScreen<DebugInterface>(() => new DebugInterface(this.GameHelper, this.TargetFactory, () => this.Config, this.Monitor));
 
             // add Generic Mod Config Menu integration
@@ -133,21 +126,17 @@ namespace Pathoschild.Stardew.LookupAnything
             ).Register();
         }
 
-        /// <inheritdoc cref="IGameLoopEvents.DayStarted"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IGameLoopEvents.DayStarted" />
         private void OnDayStarted(object? sender, DayStartedEventArgs e)
         {
             if (!this.IsDataValid)
                 return;
 
             // reset low-level cache once per game day (used for expensive queries that don't change within a day)
-            this.GameHelper.ResetCache(this.Helper.Reflection, this.Monitor);
+            this.GameHelper.ResetCache(this.Monitor);
         }
 
-        /// <inheritdoc cref="IInputEvents.ButtonsChanged"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IInputEvents.ButtonsChanged" />
         private void OnButtonsChanged(object? sender, ButtonsChangedEventArgs e)
         {
             if (!this.IsDataValid)
@@ -179,9 +168,7 @@ namespace Pathoschild.Stardew.LookupAnything
             });
         }
 
-        /// <inheritdoc cref="IDisplayEvents.MenuChanged"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IDisplayEvents.MenuChanged" />
         private void OnMenuChanged(object? sender, MenuChangedEventArgs e)
         {
             // restore the previous menu if it was hidden to show the lookup UI
@@ -192,9 +179,7 @@ namespace Pathoschild.Stardew.LookupAnything
             });
         }
 
-        /// <inheritdoc cref="IDisplayEvents.RenderedHud"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IDisplayEvents.RenderedHud" />
         private void OnRenderedHud(object? sender, RenderedHudEventArgs e)
         {
             if (!this.IsDataValid)

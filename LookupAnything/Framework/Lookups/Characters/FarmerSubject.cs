@@ -8,6 +8,7 @@ using Pathoschild.Stardew.Common;
 using Pathoschild.Stardew.LookupAnything.Framework.DebugFields;
 using Pathoschild.Stardew.LookupAnything.Framework.Fields;
 using StardewValley;
+using StardewValley.GameData;
 using StardewValley.Objects;
 using SFarmer = StardewValley.Farmer;
 
@@ -46,7 +47,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
                 : null;
         }
 
-        /// <summary>Get the data to display for this subject.</summary>
+        /// <inheritdoc />
         public override IEnumerable<ICustomField> GetData()
         {
             SFarmer target = this.Target;
@@ -71,6 +72,14 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
             yield return new SkillBarField(I18n.Player_FishingSkill(), target.experiencePoints[SFarmer.fishingSkill], maxSkillPoints, skillPointsPerLevel);
             yield return new SkillBarField(I18n.Player_CombatSkill(), target.experiencePoints[SFarmer.combatSkill], maxSkillPoints, skillPointsPerLevel);
 
+            // custom skills
+            var spaceCore = this.GameHelper.SpaceCore;
+            if (spaceCore.IsLoaded)
+            {
+                foreach (string skill in spaceCore.ModApi.GetCustomSkills())
+                    yield return new SkillBarField(spaceCore.ModApi.GetDisplayNameOfCustomSkill(skill), spaceCore.ModApi.GetExperienceForCustomSkill(target, skill), maxSkillPoints, skillPointsPerLevel);
+            }
+
             // luck
             string luckSummary = I18n.Player_Luck_Summary(percent: (Game1.player.DailyLuck >= 0 ? "+" : "") + Math.Round(Game1.player.DailyLuck * 100, 2));
             yield return new GenericField(I18n.Player_Luck(), $"{this.GetSpiritLuckMessage()}{Environment.NewLine}({luckSummary})");
@@ -80,14 +89,14 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
                 yield return new GenericField(I18n.Player_SaveFormat(), this.GetSaveFormat(this.RawSaveData?.Value));
         }
 
-        /// <summary>Get raw debug data to display for this subject.</summary>
+        /// <inheritdoc />
         public override IEnumerable<IDebugField> GetDebugFields()
         {
             SFarmer target = this.Target;
 
             // pinned fields
-            yield return new GenericDebugField("immunity", target.immunity, pinned: true);
-            yield return new GenericDebugField("resilience", target.resilience, pinned: true);
+            yield return new GenericDebugField("immunity", target.Immunity, pinned: true);
+            yield return new GenericDebugField("defense", target.buffs.Defense, pinned: true);
             yield return new GenericDebugField("magnetic radius", target.MagneticRadius, pinned: true);
 
             // raw fields
@@ -95,11 +104,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
                 yield return field;
         }
 
-        /// <summary>Draw the subject portrait (if available).</summary>
-        /// <param name="spriteBatch">The sprite batch being drawn.</param>
-        /// <param name="position">The position at which to draw.</param>
-        /// <param name="size">The size of the portrait to draw.</param>
-        /// <returns>Returns <c>true</c> if a portrait was drawn, else <c>false</c>.</returns>
+        /// <inheritdoc />
         public override bool DrawPortrait(SpriteBatch spriteBatch, Vector2 position, Vector2 size)
         {
             SFarmer target = this.Target;
@@ -140,30 +145,38 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
         /// <summary>Get the human-readable farm type selected by the player.</summary>
         private string? GetFarmType()
         {
-            // get farm type
-            int farmType = Game1.whichFarm;
-            if (this.IsLoadMenu)
+            // get farm type ID
+            string farmTypeId = this.IsLoadMenu
+                ? this.RawSaveData?.Value?.Element("whichFarm")?.Value ?? Game1.GetFarmTypeID()
+                : Game1.GetFarmTypeID();
+
+            // handle pre-1.6 farm types
+            if (int.TryParse(farmTypeId, out int farmTypeNumber))
             {
-                XElement? saveData = this.RawSaveData?.Value;
-                string? rawType = saveData?.Element("whichFarm")?.Value;
-                farmType = rawType != null ? int.Parse(rawType) : -1;
+                string? translationKey = farmTypeNumber switch
+                {
+                    Farm.combat_layout => "Character_FarmCombat",
+                    Farm.default_layout => "Character_FarmStandard",
+                    Farm.forest_layout => "Character_FarmForaging",
+                    Farm.mountains_layout => "Character_FarmMining",
+                    Farm.riverlands_layout => "Character_FarmFishing",
+                    Farm.fourCorners_layout => "Character_FarmFourCorners",
+                    Farm.beach_layout => "Character_FarmBeach",
+                    _ => null
+                };
+                if (translationKey != null)
+                    return GameI18n.GetString("Strings\\UI:" + translationKey).Replace("_", Environment.NewLine);
             }
 
-            // get type name
-            return farmType switch
+            // handle data farm type
+            foreach (ModFarmType farmData in DataLoader.AdditionalFarms(Game1.content))
             {
-                -1 => null,
+                if (farmData?.Id == farmTypeId && farmData.TooltipStringPath != null)
+                    return GameI18n.GetString(farmData.TooltipStringPath).Replace("_", Environment.NewLine);
+            }
 
-                Farm.combat_layout => GameI18n.GetString("Strings\\UI:Character_FarmCombat").Replace("_", Environment.NewLine),
-                Farm.default_layout => GameI18n.GetString("Strings\\UI:Character_FarmStandard").Replace("_", Environment.NewLine),
-                Farm.forest_layout => GameI18n.GetString("Strings\\UI:Character_FarmForaging").Replace("_", Environment.NewLine),
-                Farm.mountains_layout => GameI18n.GetString("Strings\\UI:Character_FarmMining").Replace("_", Environment.NewLine),
-                Farm.riverlands_layout => GameI18n.GetString("Strings\\UI:Character_FarmFishing").Replace("_", Environment.NewLine),
-                Farm.fourCorners_layout => GameI18n.GetString("Strings\\UI:Character_FarmFourCorners").Replace("_", Environment.NewLine),
-                Farm.beach_layout => GameI18n.GetString("Strings\\UI:Character_FarmBeach").Replace("_", Environment.NewLine),
-
-                _ => I18n.Player_FarmMap_Custom()
-            };
+            // unknown farm type (e.g. a pre-1.6 custom type)
+            return I18n.Player_FarmMap_Custom();
         }
 
         /// <summary>Get the player's spouse name, if they're married.</summary>
@@ -174,7 +187,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Characters
                 return this.Target.spouse;
 
             long? spousePlayerID = this.Target.team.GetSpouse(this.Target.UniqueMultiplayerID);
-            SFarmer? spousePlayer = spousePlayerID.HasValue ? Game1.getFarmerMaybeOffline(spousePlayerID.Value) : null;
+            SFarmer? spousePlayer = spousePlayerID.HasValue ? Game1.GetPlayer(spousePlayerID.Value) : null;
 
             return spousePlayer?.displayName ?? Game1.player.getSpouse()?.displayName;
         }

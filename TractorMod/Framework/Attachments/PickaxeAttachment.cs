@@ -30,6 +30,9 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
             [ResourceClump.boulderIndex] = Tool.steel
         };
 
+        /// <summary>Simplifies access to private code.</summary>
+        private readonly IReflectionHelper Reflection;
+
 
         /*********
         ** Public methods
@@ -39,35 +42,25 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
         /// <param name="modRegistry">Fetches metadata about loaded mods.</param>
         /// <param name="reflection">Simplifies access to private code.</param>
         public PickaxeAttachment(PickAxeConfig config, IModRegistry modRegistry, IReflectionHelper reflection)
-            : base(modRegistry, reflection)
+            : base(modRegistry)
         {
             this.Config = config;
+            this.Reflection = reflection;
         }
 
-        /// <summary>Get whether the tool is currently enabled.</summary>
-        /// <param name="player">The current player.</param>
-        /// <param name="tool">The tool selected by the player (if any).</param>
-        /// <param name="item">The item selected by the player (if any).</param>
-        /// <param name="location">The current location.</param>
+        /// <inheritdoc />
         public override bool IsEnabled(Farmer player, Tool? tool, Item? item, GameLocation location)
         {
             return tool is Pickaxe;
         }
 
-        /// <summary>Apply the tool to the given tile.</summary>
-        /// <param name="tile">The tile to modify.</param>
-        /// <param name="tileObj">The object on the tile.</param>
-        /// <param name="tileFeature">The feature on the tile.</param>
-        /// <param name="player">The current player.</param>
-        /// <param name="tool">The tool selected by the player (if any).</param>
-        /// <param name="item">The item selected by the player (if any).</param>
-        /// <param name="location">The current location.</param>
+        /// <inheritdoc />
         public override bool Apply(Vector2 tile, SObject? tileObj, TerrainFeature? tileFeature, Farmer player, Tool? tool, Item? item, GameLocation location)
         {
             tool = tool.AssertNotNull();
 
             // break stones
-            if (this.Config.ClearDebris && tileObj?.Name == "Stone")
+            if (this.Config.ClearDebris && tileObj?.IsBreakableStone() == true)
                 return this.UseToolOnTile(tool, tile, player, location);
 
             // break flooring & paths
@@ -75,15 +68,16 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
                 return this.UseToolOnTile(tool, tile, player, location);
 
             // break objects
-            if (this.Config.ClearObjects && tileObj != null)
+            bool isMineSpawn = location is MineShaft && tileObj?.IsSpawnedObject == true;
+            if (this.Config.ClearObjects && tileObj != null && !isMineSpawn)
                 return this.UseToolOnTile(tool, tile, player, location);
 
             // break mine containers
-            if (this.Config.BreakMineContainers && this.TryBreakContainer(tile, tileObj, tool, location))
+            if (this.Config.BreakMineContainers && this.TryBreakContainer(tile, tileObj, player, tool))
                 return true;
 
             // clear weeds
-            if (this.Config.ClearWeeds && this.IsWeed(tileObj))
+            if (this.Config.ClearWeeds && tileObj?.IsWeeds() == true)
                 return this.UseToolOnTile(tool, tile, player, location);
 
             // handle dirt
@@ -111,7 +105,7 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
             }
 
             // harvest spawned mine objects
-            if (this.Config.HarvestMineSpawns && location is MineShaft && tileObj?.IsSpawnedObject == true && this.CheckTileAction(location, tile, player))
+            if (this.Config.HarvestMineSpawns && isMineSpawn && this.CheckTileAction(location, tile, player))
             {
                 this.CancelAnimation(player, FarmerSprite.harvestItemDown, FarmerSprite.harvestItemLeft, FarmerSprite.harvestItemRight, FarmerSprite.harvestItemUp);
                 return true;
@@ -133,7 +127,7 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
         private bool CanBreakBoulderAt(GameLocation location, Vector2 tile, Farmer player, Tool tool, [NotNullWhen(true)] out Func<Tool, bool>? applyTool)
         {
             return
-                this.TryGetResourceClumpCoveringTile(location, tile, player, out ResourceClump? clump, out applyTool)
+                this.TryGetResourceClumpCoveringTile(location, tile, player, this.Reflection, out ResourceClump? clump, out applyTool)
                 && (
                     !this.ResourceUpgradeLevelsNeeded.TryGetValue(clump.parentSheetIndex.Value, out int requiredUpgradeLevel)
                     || tool.UpgradeLevel >= requiredUpgradeLevel

@@ -41,10 +41,10 @@ namespace Pathoschild.Stardew.Common.UI
         /*********
         ** Public methods
         *********/
-        /// <summary>Release all resources.</summary>
+        /// <inheritdoc />
         public virtual void Dispose()
         {
-            this.Events.Display.Rendered -= this.OnRendered;
+            this.Events.Display.RenderedActiveMenu -= this.OnRendered;
             this.Events.Display.RenderedWorld -= this.OnRenderedWorld;
             this.Events.GameLoop.UpdateTicked -= this.OnUpdateTicked;
             this.Events.Input.ButtonPressed -= this.OnButtonPressed;
@@ -79,7 +79,7 @@ namespace Pathoschild.Stardew.Common.UI
             events.GameLoop.UpdateTicked += this.OnUpdateTicked;
 
             if (this.IsMethodOverridden(nameof(this.DrawUi)))
-                events.Display.Rendered += this.OnRendered;
+                events.Display.RenderedActiveMenu += this.OnRendered;
             if (this.IsMethodOverridden(nameof(this.DrawWorld)))
                 events.Display.RenderedWorld += this.OnRenderedWorld;
             if (this.IsMethodOverridden(nameof(this.ReceiveLeftClick)))
@@ -91,6 +91,9 @@ namespace Pathoschild.Stardew.Common.UI
             if (this.IsMethodOverridden(nameof(this.ReceiveScrollWheelAction)))
                 events.Input.MouseWheelScrolled += this.OnMouseWheelScrolled;
         }
+
+        /// <summary>Update the menu state each tick if needed.</summary>
+        protected virtual void Update() { }
 
         /// <summary>Draw the overlay to the screen over the UI.</summary>
         /// <param name="batch">The sprite batch being drawn.</param>
@@ -109,9 +112,7 @@ namespace Pathoschild.Stardew.Common.UI
             return false;
         }
 
-        /// <inheritdoc cref="IInputEvents.ButtonsChanged"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IInputEvents.ButtonsChanged" />
         protected virtual void ReceiveButtonsChanged(object? sender, ButtonsChangedEventArgs e) { }
 
         /// <summary>The method invoked when the player uses the mouse scroll wheel.</summary>
@@ -154,10 +155,8 @@ namespace Pathoschild.Stardew.Common.UI
         /****
         ** Event listeners
         ****/
-        /// <inheritdoc cref="IDisplayEvents.Rendered"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
-        private void OnRendered(object? sender, RenderedEventArgs e)
+        /// <inheritdoc cref="IDisplayEvents.Rendered" />
+        private void OnRendered(object? sender, RenderedActiveMenuEventArgs e)
         {
             if (Context.ScreenId != this.ScreenId)
                 return;
@@ -165,9 +164,7 @@ namespace Pathoschild.Stardew.Common.UI
             this.DrawUi(Game1.spriteBatch);
         }
 
-        /// <inheritdoc cref="IDisplayEvents.RenderedWorld"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IDisplayEvents.RenderedWorld" />
         private void OnRenderedWorld(object? sender, RenderedWorldEventArgs e)
         {
             if (Context.ScreenId != this.ScreenId)
@@ -176,36 +173,39 @@ namespace Pathoschild.Stardew.Common.UI
             this.DrawWorld(e.SpriteBatch);
         }
 
-        /// <inheritdoc cref="IGameLoopEvents.UpdateTicked"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IGameLoopEvents.UpdateTicked" />
         private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
         {
-            if (Context.ScreenId == this.ScreenId)
+            // ignore if it's for a different screen
+            if (Context.ScreenId != this.ScreenId)
             {
-                // detect end of life
-                if (this.KeepAliveCheck != null && !this.KeepAliveCheck())
-                {
+                if (!Context.HasScreenId(this.ScreenId))
                     this.Dispose();
-                    return;
-                }
 
-                // trigger window resize event
-                Rectangle newViewport = Game1.uiViewport;
-                if (this.LastViewport.Width != newViewport.Width || this.LastViewport.Height != newViewport.Height)
-                {
-                    newViewport = new Rectangle(newViewport.X, newViewport.Y, newViewport.Width, newViewport.Height);
-                    this.ReceiveGameWindowResized();
-                    this.LastViewport = newViewport;
-                }
+                return;
             }
-            else if (!Context.HasScreenId(this.ScreenId))
+
+            // detect end of life
+            if (this.KeepAliveCheck != null && !this.KeepAliveCheck())
+            {
                 this.Dispose();
+                return;
+            }
+
+            // trigger window resize event
+            Rectangle newViewport = Game1.uiViewport;
+            if (this.LastViewport.Width != newViewport.Width || this.LastViewport.Height != newViewport.Height)
+            {
+                newViewport = new Rectangle(newViewport.X, newViewport.Y, newViewport.Width, newViewport.Height);
+                this.ReceiveGameWindowResized();
+                this.LastViewport = newViewport;
+            }
+
+            // apply custom update logic
+            this.Update();
         }
 
-        /// <inheritdoc cref="IInputEvents.ButtonsChanged"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IInputEvents.ButtonsChanged" />
         private void OnButtonsChanged(object? sender, ButtonsChangedEventArgs e)
         {
             if (Context.ScreenId != this.ScreenId)
@@ -214,9 +214,7 @@ namespace Pathoschild.Stardew.Common.UI
             this.ReceiveButtonsChanged(sender, e);
         }
 
-        /// <inheritdoc cref="IInputEvents.ButtonPressed"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IInputEvents.ButtonPressed" />
         private void OnButtonPressed(object? sender, ButtonPressedEventArgs e)
         {
             if (Context.ScreenId != this.ScreenId)
@@ -239,9 +237,7 @@ namespace Pathoschild.Stardew.Common.UI
                 this.InputHelper.Suppress(e.Button);
         }
 
-        /// <inheritdoc cref="IInputEvents.MouseWheelScrolled"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IInputEvents.MouseWheelScrolled" />
         private void OnMouseWheelScrolled(object? sender, MouseWheelScrolledEventArgs e)
         {
             if (Context.ScreenId != this.ScreenId)
@@ -264,9 +260,7 @@ namespace Pathoschild.Stardew.Common.UI
             }
         }
 
-        /// <inheritdoc cref="IInputEvents.CursorMoved"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IInputEvents.CursorMoved" />
         private void OnCursorMoved(object? sender, CursorMovedEventArgs e)
         {
             if (Context.ScreenId != this.ScreenId)

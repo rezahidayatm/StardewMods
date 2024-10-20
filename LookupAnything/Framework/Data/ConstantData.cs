@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Pathoschild.Stardew.LookupAnything.Framework.Constants;
 
@@ -53,7 +52,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Data
 
         /// <summary>The experience points needed for each skill level.</summary>
         /// <remarks>Derived from <see cref="StardewValley.Farmer.checkForLevelGain"/>.</remarks>
-        public int[] PlayerSkillPointsPerLevel { get; set; } = Array.Empty<int>();
+        public int[] PlayerSkillPointsPerLevel { get; set; } = [];
 
         /****
         ** Time
@@ -75,7 +74,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Data
         /****
         ** Items
         ****/
-        /// <summary>Items which can have an iridium quality. This is a list of category IDs (negative) or item IDs (positive).</summary>
+        /// <summary>Items which can have an iridium quality. This is a list of category IDs or qualified item IDs.</summary>
         /// <remarks>
         /// The following can have iridium quality:
         /// - animal produce;
@@ -83,14 +82,14 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Data
         /// - artisanal products aged in the cask (derived from <see cref="StardewValley.Objects.Cask.performObjectDropInAction"/>);
         /// - forage crops.
         /// </remarks>
-        public int[] ItemsWithIridiumQuality { get; set; } = Array.Empty<int>();
+        public string[] ItemsWithIridiumQuality { get; set; } = [];
 
         /****
         ** Achievements
         ****/
-        /// <summary>The crops that must be shipped for the polyculture achievement.</summary>
+        /// <summary>The number of a single crop that must be shipped for the monoculture achievement.</summary>
         /// <remarks>Derived from <see cref="StardewValley.Stats.checkForShippingAchievements"/>.</remarks>
-        public int[] PolycultureCrops { get; set; } = Array.Empty<int>();
+        public int MonocultureCount { get; set; }
 
         /// <summary>The number of each crop that must be shipped for the polyculture achievement.</summary>
         /// <remarks>Derived from <see cref="StardewValley.Stats.checkForShippingAchievements"/>.</remarks>

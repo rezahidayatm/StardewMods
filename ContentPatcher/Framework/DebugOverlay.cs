@@ -76,8 +76,7 @@ namespace ContentPatcher.Framework
         /*********
         ** Protected methods
         *********/
-        /// <summary>Draw to the screen.</summary>
-        /// <param name="spriteBatch">The sprite batch to which to draw.</param>
+        /// <inheritdoc />
         protected override void DrawUi(SpriteBatch spriteBatch)
         {
             string name = this.CurrentName?.Name ?? "???";
@@ -99,7 +98,7 @@ namespace ContentPatcher.Framework
         private IEnumerable<IAssetName> GetTextureNames(IGameContentHelper contentHelper)
         {
             // get all texture keys from the content helper (this is such a hack)
-            List<IAssetName> textureKeys = new();
+            List<IAssetName> textureKeys = [];
             contentHelper.InvalidateCache(asset =>
             {
                 IAssetName name = asset.Name;

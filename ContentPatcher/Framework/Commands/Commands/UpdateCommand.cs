@@ -29,11 +29,12 @@ namespace ContentPatcher.Framework.Commands.Commands
         /// <inheritdoc />
         public override string GetDescription()
         {
-            return @"
+            return
+                """
                 patch update
                    Usage: patch update
                    Immediately refreshes the condition context and rechecks all patches.
-            ";
+                """;
         }
 
         /// <inheritdoc />

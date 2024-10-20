@@ -1,6 +1,182 @@
 ﻿[← back to readme](README.md)
 
 # Release notes
+## Upcoming release
+* Updated for Stardew Valley 1.6.9.
+* Added buildings to search UI.
+* Added custom skills from SpaceCore to farmer lookups (thanks to Pet-Slime!).
+* Added monoculture achievement to item 'needed for' field (thanks to Mushymato!).
+* Building recipes in item lookups now show the build gold price.
+* Building lookups now show their build cost/materials.
+* Invalid recipes are now hidden by default (thanks to Mushymato!).
+* Tweaked machine recipes' ingredient order for readability (thanks to zombifier!).
+* Times are now shown in the current language's default format.
+* Fixed fishing spawn rules not shown for non-fish catches like River Jelly.
+* Fixed support for custom machine rules using `ITEM_ID` and `ITEM_CONTEXT_TAG` game state queries.
+* Fixed support for custom polyculture crops in 'needed for' field (thanks to Mushymato!).
+* Fixed hidden items being counted when deciding whether to collapse a field (thanks to b3nk3lly!).
+* Fixed fish spawn fields...
+  - not showing some locations' display names (thanks to b3nk3lly!);
+  - sometimes shown for the wrong item (thanks to Mushymato!);
+  - always showing one-time fish as not caught (thanks to Mushymato!).
+* Fixed errors when another mod adds invalid data.
+* Fixed error if an old version of Custom Bush is installed.
+* Fixed format for `DAY_OF_MONTH` queries in lookups (thanks to Mushymato!).
+* Improved translations. Thanks to MakinDay (updated Italian), moonggae (updated Korean), and Mushymato (updated Chinese)!
+
+## 1.45.3
+Released 07 July 2024 for SMAPI 4.0.7 or later.
+
+* Fixed error formatting Chinese/Japanese text in some cases.
+
+## 1.45.2
+Released 01 July 2024 for SMAPI 4.0.7 or later.
+
+* Fixed error showing Bush Bloom schedules.
+* Fixed issues with line wrapping and list delimiting in 1.45.
+* Fixed item lookups showning recipes for invalid machines (thanks to zombifier!).
+* Improved translations. Thanks to MakinDay (updated Italian)!
+
+## 1.45.1
+Released 30 June 2024 for SMAPI 4.0.7 or later.
+
+* Fixed lists missing comma separators in some cases.
+
+## 1.45.0
+Released 29 June 2024 for SMAPI 4.0.7 or later.
+
+* Added integration with Bush Bloom Mod (thanks to Mushymato!).
+* Added human-readable text for `DAY_OF_MONTH` conditions (thanks to Mushymato!).
+* Added item context tags to pinned data mining fields.
+* Fixed crafting recipes with 'any wild seeds' ingredients not handled correctly.
+* Fixed some invalid recipe ingredients being hidden; they're now shown as error items.
+* Fixed error looking up broken crops.
+* Fixed lookups for some fish not listing some locations they can spawn in.
+* Fixed search UI listing some wallpaper/flooring items twice.
+* Fixed some Chinese and Japanese text not line-wrapped after 1.44.0.
+* Improved translations. Thanks to DxTea (updated Russian), MakinDay (updated Italian), mitekano23 (updated Japanese), and weizinai (updated Chinese)!
+
+## 1.44.1
+Released 08 June 2024 for SMAPI 4.0.7 or later.
+
+* Raw conditions and context tags are now formatted like _context tag "tag"_ and _query "query"_ to reduce confusion.
+* Fixed search UI not listing dried items, pickled forage, smoked fish, and specific bait.
+* Fixed search UI error if a custom pet type has no display name.
+* Raised minimum versions to SMAPI 4.0.7 and Stardew Valley 1.6.4.  
+  _This avoids errors due to breaking changes in earlier 1.6 patches._
+* Internal refactoring.
+* Improved translations. Thanks to DARKS0UND (updated Korean), MakinDay (updated Italian), mehmetgorkemarslan (updated Turkish), mezen (updated German), and weizinai (updated Chinese)!
+
+## 1.44.0
+Released 27 May 2024 for SMAPI 4.0.0 or later.
+
+* Split 'progression mode' into multiple options.
+* Added human-readable text for keg recipe conditions.
+* The list value separator (like the `, ` in `A, B, C`) is now translatable for non-English players.
+* Fixed fish area display names in data not shown in Lookup Anything.
+* Fixed some Custom Bush lookups showing game tokens like `LocalizedText`.
+* Improved translations. Thanks to mitekano23 (updated Japanese!).
+
+## 1.43.2
+Released 23 May 2024 for SMAPI 4.0.0 or later.
+
+* Added readable text in recipes for 'preserve sheet index' context tags.
+* Fixed location display names not used when possible.
+* Fixed item lookups showing unrelated custom recipes in some cases (thanks to zombifier!).
+* Improved translations. Thanks to DARKS0UND (updated Korean)!
+
+## 1.43.1
+Released 22 May 2024 for SMAPI 4.0.0 or later.
+
+* Fixed machine lookup error when Producer Framework Mod overrides some machines.
+
+## 1.43.0
+Released 22 May 2024 for SMAPI 4.0.0 or later.
+
+* Added support for machine recipes in `Data/Buildings` and `Data/Machines`, including custom recipes from other mods (thanks to collaboration with zombifier!).
+* Added support for machine changes from the Extra Machine Config mod (thanks to zombifier!).
+* Added quality star icons in recipe lists where relevant.
+* Added config options for the new collapsible fields, and raised maximum number of items shown before they collapse by default.
+* Added hint message when some machine rules are too dynamic to display.
+* Re-added support for Producer Framework Mod machines (thanks to zombifier!).
+* The 'progression mode' option now hides recipes you haven't learned yet (thanks to b3nk3lly!).
+* Fixed repeating warning when looking up caged monsters at Spirit's Eve.
+* Fixed keg and preserve jar lookups showing incorrect recipe items like "Error Item Jelly" (thanks to b3nk3lly!).
+* Fixed roe lookups showing incorrect caviar recipe (thanks to b3nk3lly!).
+* Fixed roe lookups showing recipes like 'Aged Aged Roe Roe'.
+* Improved translations. Thanks to burunduk (updated Ukrainian), Caranud (updated French), MakinDay (updated Italian), mitekano23 (updated Japanese), nimbXnumb (updated Russian), ShanderB (updated Portuguese), and weizinai & ykinsoul (updated Chinese)!
+
+## 1.42.0
+Released 21 April 2024 for SMAPI 4.0.0 or later.
+
+* Some fields now collapse by default when they have too much content. You can click a link to show the full list. This affects:
+  * in item lookups, the recipes field with more than 10 recipes;
+  * in NPC lookups, gift taste fields with more than 30 items.
+* Added integration with Custom Bushes (thanks to LeFauxMatt!).
+* In tree lookups, the growth chance is now rounded to avoid strange values like 15.000001% (thanks to b3nk3lly!).
+* Fixed `no translation:trees.stages.4` message in some tree lookups.
+* Improved translations. Thanks to iglnierod (updated Spanish)!
+
+## 1.41.6
+Released 15 April 2024 for SMAPI 4.0.0 or later.
+
+* Fixed handling of tailoring recipes with gender-dependent output.
+* Fixed support for custom adventurer's guild slayer goals, and updated for the goal changes in Stardew Valley 1.6.
+* Fixed fish lookups not handling fish pond changes in Stardew Valley 1.6.
+* Improved translations. Thanks to Jualko (updated German), Kaian-Campos (updated Portuguese), MakinDay (updated Italian), Timur13240 (updated Russian), and wally232 (updated Korean)!
+
+## 1.41.5
+Released 08 April 2024 for SMAPI 4.0.0 or later.
+
+* Fixed movie ticket lookup showing broken movie title/description.
+* Fixed fish area names no longer translated.
+* Improved translations. Thanks to EngurRuzgar (updated Turkish), fjf010223 & mc-kaishixiaxue (updated Chinese), iglnierod (updated Spanish), and MakinDay (updated Italian)!
+
+## 1.41.4
+Released 04 April 2024 for SMAPI 4.0.0 or later.
+
+* Improved fish spawn rules in lookups (thanks to gr3ger!).
+* Fixed display names for new wild tree types.
+* Fixed upgrade level check for barns and coops.
+* Fixed errors showing lookups when a mod has broken textures.
+* Fixed backwoods shown as a source for some fish (thanks to gr3ger!).
+* Improved translations. Thanks to EngurRuzgar (updated Turkish) and Jualko (updated German)!
+
+## 1.41.3
+Released 28 March 2024 for SMAPI 4.0.0 or later.
+
+* Fixed machine output recipes no longer shown.
+* Fixed cooking recipes always shown as never cooked.
+* Improved translations. Thanks to MakinDay (updated Italian), mc-kaishixiaxue (updated Chinese), and Shi974 (updated French)!
+
+## 1.41.2
+Released 26 March 2024 for SMAPI 4.0.0 or later.
+
+* Fixed chest lookups counting fridges as owned chests.
+* Fixed crop lookups no longer showing growth info when full-grown.
+* Fixed recipe data no longer shown in some cases.
+* Fixed support for recipes with randomized output items.
+* Fixed error using search menu if other mods added items with no names.
+* Fixed lookups for upgraded barns/coops not showing correct upgrade summary.
+
+## 1.41.1
+Released 21 March 2024 for SMAPI 4.0.0 or later.
+
+* Fixed error looking up wild forage.
+* Fixed error looking up players on the Meadowlands farm or a custom `Data/AdditionalFarms` farm type.
+
+## 1.41.0
+Released 19 March 2024 for SMAPI 4.0.0 or later.
+
+* Updated for Stardew Valley 1.6.  
+  _Thanks to SinZ163 for contributing some of the fixes!_
+* Item lookups now show which mod added the item, if the mod follows the [unique string ID](https://stardewvalleywiki.com/Modding:Modder_Guide/Game_Fundamentals#Unique_string_IDs) format.
+* Added more seed info in tree lookups.
+* Added support for looking up NPCs in some custom mod menus (thanks to BinaryLip!).
+* Improved debug field format for player stats and schedules.
+* Improved translations. Thanks to EmWhyKay (updated Turkish) and MakinDay (updated Italian)!
+* Fixed errors if some config fields are set to null.
+
 ## 1.40.4
 Released 01 December 2023 for SMAPI 3.14.0 or later.
 

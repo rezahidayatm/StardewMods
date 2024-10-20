@@ -30,7 +30,7 @@ namespace ContentPatcher.Framework
         private readonly IMonitor Monitor;
 
         /// <summary>The content packs whose configuration changed.</summary>
-        private readonly HashSet<LoadedContentPack> QueuedForConfigUpdates = new();
+        private readonly HashSet<LoadedContentPack> QueuedForConfigUpdates = [];
 
         /// <summary>Whether the next tick is the first one for the current screen.</summary>
         private bool IsFirstTick = true;
@@ -64,13 +64,12 @@ namespace ContentPatcher.Framework
         /// <param name="installedMods">The installed mod IDs.</param>
         /// <param name="modTokens">The custom tokens provided by mods.</param>
         /// <param name="assetValidators">Handle special validation logic on loaded or edited assets.</param>
-        /// <param name="groupEditsByMod">Whether to apply changes from each content pack in a separate operation.</param>
-        public ScreenManager(IModHelper helper, IMonitor monitor, IInvariantSet installedMods, ModProvidedToken[] modTokens, IAssetValidator[] assetValidators, bool groupEditsByMod)
+        public ScreenManager(IModHelper helper, IMonitor monitor, IInvariantSet installedMods, ModProvidedToken[] modTokens, IAssetValidator[] assetValidators)
         {
             this.Helper = helper;
             this.Monitor = monitor;
             this.TokenManager = new TokenManager(helper.GameContent, installedMods, modTokens);
-            this.PatchManager = new PatchManager(this.Monitor, this.TokenManager, assetValidators, groupEditsByMod);
+            this.PatchManager = new PatchManager(this.Monitor, this.TokenManager, assetValidators);
             this.PatchLoader = new PatchLoader(this.PatchManager, this.TokenManager, this.Monitor, installedMods, helper.GameContent.ParseAssetName);
             this.CustomLocationManager = new CustomLocationManager(this.Monitor, helper.GameContent);
         }
@@ -95,8 +94,7 @@ namespace ContentPatcher.Framework
             this.UpdateContext(ContextUpdateType.All);
         }
 
-        /// <inheritdoc cref="IContentEvents.AssetRequested"/>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IContentEvents.AssetRequested" />
         public void OnAssetRequested(AssetRequestedEventArgs e)
         {
             bool ignoreLoads = this.CustomLocationManager.OnAssetRequested(e);
@@ -110,18 +108,42 @@ namespace ContentPatcher.Framework
         {
             // add locations
             if (newStage is LoadStage.CreatedInitialLocations or LoadStage.SaveAddedLocations)
-                this.CustomLocationManager.Apply(saveLocations: SaveGame.loaded?.locations, gameLocations: Game1.locations);
+                this.CustomLocationManager.AddTmxlLocations(saveLocations: SaveGame.loaded?.locations, gameLocations: Game1.locations);
 
             // update context
             switch (newStage)
             {
                 case LoadStage.SaveParsed:
                 case LoadStage.SaveLoadedBasicInfo or LoadStage.CreatedBasicInfo:
-                case LoadStage.Loaded when Game1.dayOfMonth == 0: // handled by OnDayStarted if we're not creating a new save
                     this.Monitor.VerboseLog($"Updating context: load stage changed to {newStage}.");
 
                     this.TokenManager.IsSaveParsed = true;
                     this.TokenManager.IsSaveBasicInfoLoaded = newStage != LoadStage.SaveParsed;
+
+                    this.UpdateContext(ContextUpdateType.All);
+                    break;
+
+                case LoadStage.Preloaded:
+                case LoadStage.Loaded:
+                    this.Monitor.VerboseLog($"Updating context: load stage changed to {newStage}.");
+
+                    if (!this.TokenManager.IsSaveLoaded)
+                    {
+                        this.TokenManager.IsSaveParsed = true;
+                        this.TokenManager.IsSaveBasicInfoLoaded = true;
+                        this.TokenManager.IsSaveLoaded = true;
+
+                        this.UpdateContext(ContextUpdateType.All);
+                    }
+                    break;
+
+                case LoadStage.None:
+                case LoadStage.ReturningToTitle:
+                    this.Monitor.VerboseLog($"Updating context: load stage changed to {newStage}.");
+
+                    this.TokenManager.IsSaveParsed = false;
+                    this.TokenManager.IsSaveBasicInfoLoaded = false;
+                    this.TokenManager.IsSaveLoaded = false;
 
                     this.UpdateContext(ContextUpdateType.All);
                     break;
@@ -151,17 +173,6 @@ namespace ContentPatcher.Framework
         {
             this.Monitor.VerboseLog("Updating context: player warped.");
             this.UpdateContext(ContextUpdateType.OnLocationChange);
-        }
-
-        /// <summary>The method invoked when the player returns to the title screen.</summary>
-        public void OnReturnedToTitle()
-        {
-            this.Monitor.VerboseLog("Updating context: returned to title.");
-
-            this.TokenManager.IsSaveParsed = false;
-            this.TokenManager.IsSaveBasicInfoLoaded = false;
-
-            this.UpdateContext(ContextUpdateType.All);
         }
 
         /// <summary>Raised after the game performs its overall update tick (≈60 times per second).</summary>
@@ -247,8 +258,7 @@ namespace ContentPatcher.Framework
                                     ? "unnamed"
                                     : entry.Name;
 
-                                if (!dynamicTokenCountByName.ContainsKey(label))
-                                    dynamicTokenCountByName[label] = -1;
+                                dynamicTokenCountByName.TryAdd(label, -1);
                                 int discriminator = ++dynamicTokenCountByName[label];
                                 localPath = localPath.With($"{entry.Name} {discriminator}");
                             }
@@ -333,7 +343,7 @@ namespace ContentPatcher.Framework
                     this.PatchLoader.LoadPatches(
                         contentPack: current,
                         rawPatches: content.Changes,
-                        rootIndexPath: new[] { current.Index },
+                        rootIndexPath: [current.Index],
                         path: current.LogPath,
                         parentPatch: null
                     );
@@ -366,6 +376,9 @@ namespace ContentPatcher.Framework
             // update tokens
             this.TokenManager.UpdateContext(out _);
 
+            // unload patches
+            this.PatchLoader.UnloadPatchesLoadedBy(contentPack);
+
             // reload changes to force-reset config token references
             if (!contentPack.TryReloadContent(out string? loadContentError))
             {
@@ -374,14 +387,16 @@ namespace ContentPatcher.Framework
             }
 
             // update patches
-            this.PatchLoader.UnloadPatchesLoadedBy(contentPack);
             this.PatchLoader.LoadPatches(
                 contentPack: contentPack,
                 rawPatches: contentPack.Content.Changes,
-                rootIndexPath: new[] { contentPack.Index },
+                rootIndexPath: [contentPack.Index],
                 path: contentPack.LogPath,
                 parentPatch: null
             );
+
+            // apply any changes
+            this.UpdateContext(ContextUpdateType.All);
         }
 
         /// <summary>Register a config token for a content pack.</summary>

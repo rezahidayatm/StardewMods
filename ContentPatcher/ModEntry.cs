@@ -11,6 +11,7 @@ using ContentPatcher.Framework.ConfigModels;
 using ContentPatcher.Framework.Migrations;
 using ContentPatcher.Framework.Patches;
 using ContentPatcher.Framework.Tokens;
+using ContentPatcher.Framework.TriggerActions;
 using ContentPatcher.Framework.Validators;
 using Pathoschild.Stardew.Common;
 using Pathoschild.Stardew.Common.Utilities;
@@ -18,6 +19,8 @@ using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewModdingAPI.Utilities;
 using StardewValley;
+using StardewValley.Triggers;
+using TokenParser = ContentPatcher.Framework.TokenParser;
 
 [assembly: InternalsVisibleTo("Pathoschild.Stardew.Tests.Mods")]
 namespace ContentPatcher
@@ -35,8 +38,7 @@ namespace ContentPatcher
         private LoadedContentPack[]? ContentPacks;
 
         /// <summary>The recognized format versions and their migrations.</summary>
-        private readonly Func<ContentConfig?, IMigration[]> GetFormatVersions = content => new IMigration[]
-        {
+        private readonly Func<ContentConfig?, IMigration[]> GetFormatVersions = content => [
             new Migration_1_0(),
             new Migration_1_3(),
             new Migration_1_4(),
@@ -65,14 +67,17 @@ namespace ContentPatcher
             new Migration_1_27(),
             new Migration_1_28(),
             new Migration_1_29(),
-            new Migration_1_30()
-        };
+            new Migration_1_30(),
+            new Migration_2_0(),
+            new Migration_2_1(),
+            new Migration_2_2(),
+            new Migration_2_3()
+        ];
 
         /// <summary>The special validation logic to apply to assets affected by patches.</summary>
-        private readonly Func<IAssetValidator[]> AssetValidators = () => new IAssetValidator[]
-        {
+        private readonly Func<IAssetValidator[]> AssetValidators = () => [
             new StardewValley_1_3_36_Validator()
-        };
+        ];
 
         /// <summary>Handles the 'patch' console command.</summary>
         private CommandHandler CommandHandler = null!; // set in Entry
@@ -87,7 +92,7 @@ namespace ContentPatcher
         private readonly PerScreen<DebugOverlay?> DebugOverlay = new();
 
         /// <summary>The mod tokens queued for addition. This is null after the first update tick, when new tokens can no longer be added.</summary>
-        private readonly List<ModProvidedToken> QueuedModTokens = new();
+        private readonly List<ModProvidedToken> QueuedModTokens = [];
 
         /// <summary>The game tick when the conditions API became ready for use.</summary>
         private int ConditionsApiReadyTick = int.MaxValue;
@@ -99,8 +104,7 @@ namespace ContentPatcher
         /*********
         ** Public methods
         *********/
-        /// <summary>The mod entry point, called after the mod is first loaded.</summary>
-        /// <param name="helper">Provides simplified APIs for writing mods.</param>
+        /// <inheritdoc />
         public override void Entry(IModHelper helper)
         {
             CommonHelper.RemoveObsoleteFiles(this, "ContentPatcher.pdb"); // removed in 1.29.2
@@ -112,9 +116,6 @@ namespace ContentPatcher
             helper.Events.GameLoop.UpdateTicked += this.OnUpdateTicked;
             helper.Events.Content.LocaleChanged += this.OnLocaleChanged;
 
-            if (!this.Config.GroupEditsByMod)
-                this.Monitor.Log("Grouping edits by mod is disabled in config.json. This will reduce the usefulness of log info.");
-
             // enable temporary PyTK legacy mode (unless running in SMAPI strict mode)
             IModInfo? pyTk = helper.ModRegistry.Get("Platonymous.Toolkit");
             EditImagePatch.EnablePyTkLegacyMode =
@@ -123,7 +124,7 @@ namespace ContentPatcher
                 && typeof(Constants).GetProperty("ExecutionPath") != null; // not SMAPI strict mode (which drops PyTK workarounds)
         }
 
-        /// <summary>Get an API that other mods can access. This is always called after <see cref="Entry"/>.</summary>
+        /// <inheritdoc />
         public override object GetApi()
         {
             return new ContentPatcherAPI(
@@ -132,7 +133,8 @@ namespace ContentPatcher
                 reflection: this.Helper.Reflection,
                 addModToken: this.AddModToken,
                 isConditionsApiReady: () => Game1.ticks >= this.ConditionsApiReadyTick,
-                parseConditions: this.ParseConditionsForApi
+                parseConditions: this.ParseConditionsForApi,
+                parseTokenString: this.ParseTokenStringForApi
             );
         }
 
@@ -143,9 +145,7 @@ namespace ContentPatcher
         /****
         ** Event handlers
         ****/
-        /// <inheritdoc cref="IInputEvents.ButtonsChanged"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IInputEvents.ButtonsChanged" />
         private void OnButtonsChanged(object? sender, ButtonsChangedEventArgs e)
         {
             if (this.Config.EnableDebugFeatures)
@@ -173,57 +173,37 @@ namespace ContentPatcher
             }
         }
 
-        /// <inheritdoc cref="IContentEvents.AssetRequested"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IContentEvents.AssetRequested" />
         private void OnAssetRequested(object? sender, AssetRequestedEventArgs e)
         {
             this.ScreenManager.Value.OnAssetRequested(e);
         }
 
-        /// <inheritdoc cref="ISpecializedEvents.LoadStageChanged"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="ISpecializedEvents.LoadStageChanged" />
         private void OnLoadStageChanged(object? sender, LoadStageChangedEventArgs e)
         {
             this.ScreenManager.Value.OnLoadStageChanged(e.OldStage, e.NewStage);
         }
 
-        /// <inheritdoc cref="IGameLoopEvents.DayStarted"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IGameLoopEvents.DayStarted" />
         private void OnDayStarted(object? sender, DayStartedEventArgs e)
         {
             this.ScreenManager.Value.OnDayStarted();
         }
 
-        /// <inheritdoc cref="IGameLoopEvents.TimeChanged"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IGameLoopEvents.TimeChanged" />
         private void OnTimeChanged(object? sender, TimeChangedEventArgs e)
         {
             this.ScreenManager.Value.OnTimeChanged();
         }
 
-        /// <inheritdoc cref="IPlayerEvents.Warped"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IPlayerEvents.Warped" />
         private void OnWarped(object? sender, WarpedEventArgs e)
         {
             this.ScreenManager.Value.OnWarped();
         }
 
-        /// <inheritdoc cref="IGameLoopEvents.ReturnedToTitle"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
-        private void OnReturnedToTitle(object? sender, ReturnedToTitleEventArgs e)
-        {
-            this.ScreenManager.Value.OnReturnedToTitle();
-        }
-
-        /// <inheritdoc cref="IGameLoopEvents.UpdateTicked"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IGameLoopEvents.UpdateTicked" />
         private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
         {
             // initialize after first tick on main screen so other mods can register their tokens in SMAPI's GameLoop.GameLaunched event
@@ -240,9 +220,7 @@ namespace ContentPatcher
             this.ScreenManager.Value.OnUpdateTicked();
         }
 
-        /// <inheritdoc cref="IContentEvents.LocaleChanged"/>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
+        /// <inheritdoc cref="IContentEvents.LocaleChanged" />
         private void OnLocaleChanged(object? sender, LocaleChangedEventArgs e)
         {
             if (!this.IsFirstTick)
@@ -271,15 +249,34 @@ namespace ContentPatcher
                     this.Monitor.Log($"{group.ModName} added {(group.TokenNames.Length == 1 ? "a custom token" : $"{group.TokenNames.Length} custom tokens")} with prefix '{group.ModPrefix}': {string.Join(", ", group.TokenNames)}.");
             }
 
+            // log content pack migration warnings
+            {
+                ILookup<string, string> contentPacksByWarning =
+                    this.ContentPacks
+                        .SelectMany(pack => pack.Migrator.MigrationWarnings.Select(warning => new { pack.Manifest.Name, Warning = warning }))
+                        .ToLookup(p => p.Warning, p => p.Name);
+
+                foreach (IGrouping<string, string> warningGroup in contentPacksByWarning.OrderBy(p => p.Key, new HumanSortComparer()))
+                {
+                    this.Monitor.Log(
+                        $"{warningGroup.Key}\n\nAffected content packs:\n- {string.Join("\n- ", warningGroup.OrderByHuman(p => p))}\n\nFor mod authors, see how to update a mod: https://smapi.io/cp-migrate.",
+                        LogLevel.Info
+                    );
+                }
+            }
+
             // set up events
             if (this.Config.EnableDebugFeatures)
                 helper.Events.Input.ButtonsChanged += this.OnButtonsChanged;
             helper.Events.Content.AssetRequested += this.OnAssetRequested;
-            helper.Events.GameLoop.ReturnedToTitle += this.OnReturnedToTitle;
             helper.Events.GameLoop.DayStarted += this.OnDayStarted;
             helper.Events.GameLoop.TimeChanged += this.OnTimeChanged;
             helper.Events.Player.Warped += this.OnWarped;
             helper.Events.Specialized.LoadStageChanged += this.OnLoadStageChanged;
+
+            // set up trigger actions
+            // (This needs to happen before content packs are loaded below, since they may use these.)
+            TriggerActionManager.RegisterAction($"{this.ModManifest.UniqueID}_MigrateIds", new MigrateIdsAction().Handle);
 
             // load screen manager
             this.InitializeScreenManagerIfNeeded(this.ContentPacks);
@@ -323,8 +320,7 @@ namespace ContentPatcher
                 monitor: this.Monitor,
                 installedMods: this.GetInstalledMods(),
                 modTokens: modTokens,
-                assetValidators: this.AssetValidators(),
-                groupEditsByMod: this.Config.GroupEditsByMod
+                assetValidators: this.AssetValidators()
             );
         }
 
@@ -373,11 +369,7 @@ namespace ContentPatcher
             this.QueuedModTokens.Add(token);
         }
 
-        /// <summary>Parse raw conditions for an API consumer.</summary>
-        /// <param name="manifest">The manifest of the mod parsing the conditions.</param>
-        /// <param name="rawConditions">The raw conditions to parse.</param>
-        /// <param name="formatVersion">The format version for which to parse conditions.</param>
-        /// <param name="assumeModIds">The unique IDs of mods whose custom tokens to allow in the <paramref name="rawConditions"/>.</param>
+        /// <inheritdoc cref="ContentPatcherAPI.ParseConditionsDelegate" />
         private IManagedConditions ParseConditionsForApi(IManifest manifest, InvariantDictionary<string?>? rawConditions, ISemanticVersion formatVersion, string[]? assumeModIds = null)
         {
             IInvariantSet assumeModIdsLookup = assumeModIds is not null
@@ -394,6 +386,32 @@ namespace ContentPatcher
 
                     bool isValid = screen.PatchLoader.TryParseConditions(rawConditions, tokenParser, new LogPathBuilder(), out Condition[] conditions, out _, out string? error);
                     var managed = new ApiManagedConditionsForSingleScreen(conditions, context, isValid: isValid, validationError: error);
+                    managed.UpdateContext();
+
+                    return managed;
+                }
+            );
+        }
+
+        /// <inheritdoc cref="ContentPatcherAPI.ParseTokenStringDelegate" />
+        private IManagedTokenString ParseTokenStringForApi(IManifest manifest, string rawTokenString, ISemanticVersion formatVersion, string[]? assumeModIds = null)
+        {
+            IInvariantSet assumeModIdsLookup = assumeModIds is not null
+                ? InvariantSets.From(assumeModIds)
+                : InvariantSets.FromValue(manifest.UniqueID);
+            IMigration migrator = new AggregateMigration(formatVersion, this.GetFormatVersions(null));
+
+            return new ApiManagedTokenString(
+                parse: () =>
+                {
+                    ScreenManager screen = this.ScreenManager.Value;
+                    IContext context = screen.TokenManager;
+                    TokenParser tokenParser = new(context, manifest, migrator, assumeModIdsLookup);
+                    LogPathBuilder logPathBuilder = new();
+
+                    bool isValid = tokenParser.TryParseString(rawTokenString, assumeModIdsLookup, logPathBuilder, out string? error, out Framework.IManagedTokenString? parsedString);
+                    parsedString ??= new LiteralString(string.Empty, logPathBuilder);
+                    var managed = new ApiManagedTokenStringForSingleScreen(parsedString, context, isValid: isValid, validationError: error);
                     managed.UpdateContext();
 
                     return managed;

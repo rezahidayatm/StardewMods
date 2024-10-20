@@ -1,6 +1,45 @@
 ﻿[← back to readme](README.md)
 
 # Release notes
+## Upcoming release
+* Updated for Stardew Valley 1.6.9.
+* On the _Accessible_ layer, warps that are hidden just off-screen are now drawn along the edge.
+* Added support for Ultimate Fertilizer's multi-fertilizer feature.
+* Fixed lag if a bee house, Junimo hut, scarecrow, or sprinkler has an extremely large range.
+* Improved translations. Thanks to moonggae (updated Korean)!
+
+## 1.17.2
+Released 29 June 2024 for SMAPI 4.0.7 or later.
+
+* Fixed error showing crop layer if there are broken crops planted.
+* Improved translations. Thanks to MakinDay (updated Italian), mitekano23 (updated Japanese), and weizinai (updated Chinese)!
+
+## 1.17.1
+Released 09 June 2024 for SMAPI 4.0.7 or later.
+
+* Fixed layers defaulting to disabled in 1.17.0.
+
+## 1.17.0
+Released 08 June 2024 for SMAPI 4.0.7 or later.
+
+* Added in-game config UI through [Generic Mod Config Menu](https://www.nexusmods.com/stardewvalley/mods/5098).
+* Raised minimum versions to SMAPI 4.0.7 and Stardew Valley 1.6.4.  
+  _This avoids errors due to breaking changes in earlier 1.6 patches._
+* Internal refactoring.
+* Improved translations. Thanks to mehmetgorkemarslan (updated Turkish)!
+
+## 1.16.1
+Released 22 May 2024 for SMAPI 4.0.0 or later.
+
+* Improved translations. Thanks to burunduk (updated Ukrainian) and mitekano23 (updated Japanese)!
+
+## 1.16.0
+Released 19 March 2024 for SMAPI 4.0.0 or later.
+
+* Updated for Stardew Valley 1.6.
+* Added support for customizable color schemes.
+* Fixed errors if some config fields are set to null.
+
 ## 1.15.12
 Released 01 December 2023 for SMAPI 3.14.0 or later.
 

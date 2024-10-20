@@ -9,10 +9,7 @@ namespace Pathoschild.Stardew.Automate.Framework
         /*********
         ** Public methods
         *********/
-        /// <summary>Determines whether the specified objects are equal.</summary>
-        /// <returns>true if the specified objects are equal; otherwise, false.</returns>
-        /// <param name="left">The first object to compare.</param>
-        /// <param name="right">The second object to compare.</param>
+        /// <inheritdoc />
         public bool Equals(GameLocation? left, GameLocation? right)
         {
             string? leftName = left?.NameOrUniqueName;
@@ -27,8 +24,7 @@ namespace Pathoschild.Stardew.Automate.Framework
             return leftName == rightName;
         }
 
-        /// <summary>Get a hash code for the specified object.</summary>
-        /// <param name="obj">The value.</param>
+        /// <inheritdoc />
         public int GetHashCode(GameLocation obj)
         {
             return (obj.NameOrUniqueName ?? string.Empty).GetHashCode();

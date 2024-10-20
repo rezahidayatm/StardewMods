@@ -1,3 +1,4 @@
+using FluentAssertions;
 using NUnit.Framework;
 using Pathoschild.Stardew.Common.Utilities;
 
@@ -53,8 +54,8 @@ namespace Pathoschild.Stardew.Tests.Common.CommonTests
             int oppositeResult = comparer.Compare(b, a);
 
             // assert
-            Assert.That(result == expectedResult, $"Expected sort order to be {expectedResult}, but got {result} instead.");
-            Assert.That(oppositeResult == -expectedResult, $"Expected the inverted sort order to be {-expectedResult}, but got {oppositeResult} instead.");
+            result.Should().Be(expectedResult);
+            oppositeResult.Should().Be(-expectedResult);
         }
     }
 }

@@ -31,8 +31,14 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields.Models
         /// <summary>The output item.</summary>
         public RecipeItemEntry Output { get; }
 
+        /// <summary>The game state queries which indicate when this recipe is available, if any.</summary>
+        public string? Conditions { get; }
+
         /// <summary>A key which uniquely identifies the recipe by its combination of name, inputs, and outputs.</summary>
         public string UniqueKey => this.UniqueKeyImpl.Value;
+
+        /// <summary>Whether all items involved in this recipe are valid.</summary>
+        public bool IsValid { get; }
 
 
         /*********
@@ -44,14 +50,18 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields.Models
         /// <param name="isKnown">Whether the player knows the recipe.</param>
         /// <param name="inputs">The input items.</param>
         /// <param name="output">The output item.</param>
-        public RecipeEntry(string? name, string type, bool isKnown, RecipeItemEntry[] inputs, RecipeItemEntry output)
+        /// <param name="conditions">The game state queries which indicate when this recipe is available, if any.</param>
+        public RecipeEntry(string? name, string type, bool isKnown, RecipeItemEntry[] inputs, RecipeItemEntry output, string? conditions)
         {
             this.Name = name;
             this.Type = type;
             this.IsKnown = isKnown;
             this.Inputs = inputs;
             this.Output = output;
+            this.Conditions = conditions;
             this.UniqueKeyImpl = new Lazy<string>(() => RecipeEntry.GetUniqueKey(name, inputs, output));
+
+            this.IsValid = output.IsValid && inputs.All(input => input.IsValid);
         }
 
 
@@ -68,7 +78,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields.Models
                 .Select(item => item.DisplayText)
                 .OrderBy(item => item);
 
-            return string.Join(", ", inputNames.Concat(new[] { output.DisplayText, name }));
+            return string.Join(", ", inputNames.Concat([output.DisplayText, name]));
         }
     }
 }

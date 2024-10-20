@@ -4,7 +4,6 @@ using Microsoft.Xna.Framework;
 using Pathoschild.Stardew.DataLayers.Framework;
 using StardewValley;
 using StardewValley.Buildings;
-using StardewValley.Locations;
 
 namespace Pathoschild.Stardew.DataLayers.Layers
 {
@@ -29,32 +28,30 @@ namespace Pathoschild.Stardew.DataLayers.Layers
         *********/
         /// <summary>Construct an instance.</summary>
         /// <param name="config">The data layer settings.</param>
-        public BuildableLayer(LayerConfig config)
+        /// <param name="colors">The colors to render.</param>
+        public BuildableLayer(LayerConfig config, ColorScheme colors)
             : base(I18n.Buildable_Name(), config)
         {
-            this.Legend = new[]
-            {
-                this.Buildable = new LegendEntry(I18n.Keys.Buildable_Buildable, Color.Green),
-                this.Occupied = new LegendEntry(I18n.Keys.Buildable_Occupied, Color.Orange),
-                this.NonBuildable = new LegendEntry(I18n.Keys.Buildable_NotBuildable, Color.Red)
-            };
+            const string layerId = "Buildable";
+
+            this.Legend = [
+                this.Buildable = new LegendEntry(I18n.Keys.Buildable_Buildable, colors.Get(layerId, "Buildable", Color.Green)),
+                this.Occupied = new LegendEntry(I18n.Keys.Buildable_Occupied, colors.Get(layerId, "Occupied", Color.Orange)),
+                this.NonBuildable = new LegendEntry(I18n.Keys.Buildable_NotBuildable, colors.Get(layerId, "NotBuildable", Color.Red))
+            ];
         }
 
-        /// <summary>Get the updated data layer tiles.</summary>
-        /// <param name="location">The current location.</param>
-        /// <param name="visibleArea">The tile area currently visible on the screen.</param>
-        /// <param name="visibleTiles">The tile positions currently visible on the screen.</param>
-        /// <param name="cursorTile">The tile position under the cursor.</param>
-        public override TileGroup[] Update(GameLocation location, in Rectangle visibleArea, in Vector2[] visibleTiles, in Vector2 cursorTile)
+        /// <inheritdoc />
+        public override TileGroup[] Update(ref readonly GameLocation location, ref readonly Rectangle visibleArea, ref readonly IReadOnlySet<Vector2> visibleTiles, ref readonly Vector2 cursorTile)
         {
-            TileData[] tiles = this.GetTiles(location, visibleTiles).ToArray();
-            TileData[] buildableTiles = tiles.Where(p => p.Type.Id == this.Buildable.Id).ToArray();
+            var buildableTiles = this
+                .GetTiles(location, visibleTiles)
+                .ToLookup(p => p.Type.Id == this.Buildable.Id);
 
-            return new[]
-            {
-                new TileGroup(buildableTiles, outerBorderColor: this.Buildable.Color),
-                new TileGroup(tiles.Except(buildableTiles))
-            };
+            return [
+                new TileGroup(buildableTiles[true], outerBorderColor: this.Buildable.Color),
+                new TileGroup(buildableTiles[false])
+            ];
         }
 
 
@@ -64,17 +61,17 @@ namespace Pathoschild.Stardew.DataLayers.Layers
         /// <summary>Get the updated data layer tiles.</summary>
         /// <param name="location">The current location.</param>
         /// <param name="visibleTiles">The tiles currently visible on the screen.</param>
-        private IEnumerable<TileData> GetTiles(GameLocation location, IEnumerable<Vector2> visibleTiles)
+        private IEnumerable<TileData> GetTiles(GameLocation location, IReadOnlySet<Vector2> visibleTiles)
         {
             // buildable location
-            if (location is BuildableGameLocation buildableLocation)
+            if (location.IsBuildableLocation())
             {
                 foreach (Vector2 tile in visibleTiles)
                 {
                     // get color
                     LegendEntry type;
-                    if (this.IsBuildable(buildableLocation, tile))
-                        type = this.IsOccupied(buildableLocation, tile) ? this.Occupied : this.Buildable;
+                    if (this.IsBuildable(location, tile))
+                        type = this.IsOccupied(location, tile) ? this.Occupied : this.Buildable;
                     else
                         type = this.NonBuildable;
 
@@ -95,8 +92,8 @@ namespace Pathoschild.Stardew.DataLayers.Layers
         /// <summary>Get whether a tile is buildable.</summary>
         /// <param name="location">The current location.</param>
         /// <param name="tile">The tile to check.</param>
-        /// <remarks>Derived from <see cref="BuildableGameLocation.buildStructure(Building, Vector2, Farmer, bool)"/>.</remarks>
-        private bool IsBuildable(BuildableGameLocation location, Vector2 tile)
+        /// <remarks>Derived from <see cref="GameLocation.buildStructure(Building, Vector2, Farmer, bool)"/>.</remarks>
+        private bool IsBuildable(GameLocation location, Vector2 tile)
         {
             return location.isBuildable(tile);
         }
@@ -104,8 +101,8 @@ namespace Pathoschild.Stardew.DataLayers.Layers
         /// <summary>Get whether a tile is blocked due to something it contains.</summary>
         /// <param name="location">The current location.</param>
         /// <param name="tile">The tile to check.</param>
-        /// <remarks>Derived from <see cref="BuildableGameLocation.buildStructure(Building, Vector2, Farmer, bool)"/>.</remarks>
-        private bool IsOccupied(BuildableGameLocation location, Vector2 tile)
+        /// <remarks>Derived from <see cref="GameLocation.buildStructure(Building, Vector2, Farmer, bool)"/>.</remarks>
+        private bool IsOccupied(GameLocation location, Vector2 tile)
         {
             // buildings
             foreach (Building building in location.buildings)

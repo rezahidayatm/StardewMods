@@ -25,7 +25,7 @@ namespace Pathoschild.Stardew.Common.Integrations.ProducerFrameworkMod
         /// <param name="modRegistry">An API for fetching metadata about loaded mods.</param>
         /// <param name="monitor">Encapsulates monitoring and logging.</param>
         public ProducerFrameworkModIntegration(IModRegistry modRegistry, IMonitor monitor)
-            : base("Producer Framework Mod", "Digus.ProducerFrameworkMod", "1.3.0", modRegistry, monitor) { }
+            : base("Producer Framework Mod", "Digus.ProducerFrameworkMod", "1.9.3", modRegistry, monitor) { }
 
         /// <summary>Get the list of recipes.</summary>
         /// <remarks>The recipe format follow the MachineRecipeData class properties from Lookup Anything mod. There are some additional properties that are not presented on that class, these ones has the name of the content pack properties of this mod.</remarks>
@@ -67,11 +67,11 @@ namespace Pathoschild.Stardew.Common.Integrations.ProducerFrameworkMod
         {
             try
             {
-                int? inputId = raw["InputKey"] as int?;
-                int machineId = (int)raw["MachineID"]!;
+                string? inputId = (string?)raw["InputKey"];
+                string machineId = (string)raw["MachineID"]!;
                 ProducerFrameworkIngredient[] ingredients = ((List<Dictionary<string, object?>>)raw["Ingredients"]!).Select(this.ReadIngredient).ToArray();
-                int?[] exceptIngredients = ((List<Dictionary<string, object?>>)raw["ExceptIngredients"]!).Select(this.ReadIngredient).Select(p => p.InputId).ToArray();
-                int outputId = (int)raw["Output"]!;
+                string?[] exceptIngredients = ((List<Dictionary<string, object?>>)raw["ExceptIngredients"]!).Select(this.ReadIngredient).Select(p => p.InputId).ToArray();
+                string outputId = (string)raw["Output"]!;
                 int minOutput = (int)raw["MinOutput"]!;
                 int maxOutput = (int)raw["MaxOutput"]!;
                 PreserveType? preserveType = (PreserveType?)raw["PreserveType"];
@@ -105,9 +105,7 @@ namespace Pathoschild.Stardew.Common.Integrations.ProducerFrameworkMod
         /// <param name="raw">The raw ingredient model.</param>
         private ProducerFrameworkIngredient ReadIngredient(IDictionary<string, object?> raw)
         {
-            int? id = int.TryParse(raw["ID"]?.ToString(), out int parsedId)
-                ? parsedId
-                : null;
+            string? id = (string?)raw["ID"];
             int count = raw.TryGetValue("Count", out object? rawCount) && rawCount != null
                 ? (int)rawCount
                 : 1;

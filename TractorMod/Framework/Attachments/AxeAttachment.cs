@@ -29,6 +29,9 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
             [ResourceClump.hollowLogIndex] = Tool.steel
         };
 
+        /// <summary>Simplifies access to private code.</summary>
+        private readonly IReflectionHelper Reflection;
+
 
         /*********
         ** Public methods
@@ -38,35 +41,25 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
         /// <param name="modRegistry">Fetches metadata about loaded mods.</param>
         /// <param name="reflection">Simplifies access to private code.</param>
         public AxeAttachment(AxeConfig config, IModRegistry modRegistry, IReflectionHelper reflection)
-            : base(modRegistry, reflection)
+            : base(modRegistry)
         {
             this.Config = config;
+            this.Reflection = reflection;
         }
 
-        /// <summary>Get whether the tool is currently enabled.</summary>
-        /// <param name="player">The current player.</param>
-        /// <param name="tool">The tool selected by the player (if any).</param>
-        /// <param name="item">The item selected by the player (if any).</param>
-        /// <param name="location">The current location.</param>
+        /// <inheritdoc />
         public override bool IsEnabled(Farmer player, Tool? tool, Item? item, GameLocation location)
         {
             return tool is Axe;
         }
 
-        /// <summary>Apply the tool to the given tile.</summary>
-        /// <param name="tile">The tile to modify.</param>
-        /// <param name="tileObj">The object on the tile.</param>
-        /// <param name="tileFeature">The feature on the tile.</param>
-        /// <param name="player">The current player.</param>
-        /// <param name="tool">The tool selected by the player (if any).</param>
-        /// <param name="item">The item selected by the player (if any).</param>
-        /// <param name="location">The current location.</param>
+        /// <inheritdoc />
         public override bool Apply(Vector2 tile, SObject? tileObj, TerrainFeature? tileFeature, Farmer player, Tool? tool, Item? item, GameLocation location)
         {
             tool = tool.AssertNotNull();
 
             // clear debris
-            if (this.Config.ClearDebris && (this.IsTwig(tileObj) || this.IsWeed(tileObj)))
+            if (this.Config.ClearDebris && tileObj != null && (tileObj.IsTwig() || tileObj.IsWeeds()))
                 return this.UseToolOnTile(tool, tile, player, location);
 
             // cut terrain features
@@ -96,7 +89,7 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
             // cut resource stumps
             if (this.Config.ClearDebris || this.Config.CutGiantCrops)
             {
-                if (this.TryGetResourceClumpCoveringTile(location, tile, player, out ResourceClump? clump, out Func<Tool, bool>? applyTool))
+                if (this.TryGetResourceClumpCoveringTile(location, tile, player, this.Reflection, out ResourceClump? clump, out Func<Tool, bool>? applyTool))
                 {
                     // giant crops
                     if (this.Config.CutGiantCrops && clump is GiantCrop)
@@ -119,7 +112,7 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
             // cut bushes in large terrain features
             if (this.Config.CutBushes)
             {
-                foreach (Bush bush in location.largeTerrainFeatures.OfType<Bush>().Where(p => p.tilePosition.Value == tile))
+                foreach (Bush bush in location.largeTerrainFeatures.OfType<Bush>().Where(p => p.Tile == tile))
                 {
                     if (this.ShouldCut(bush) && this.UseToolOnTile(tool, tile, player, location))
                         return true;
@@ -168,11 +161,11 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
             var config = this.Config;
 
             // seed
-            if (tree.growthStage.Value == Tree.seedStage)
+            if (tree.growthStage.Value == FruitTree.seedStage)
                 return config.ClearFruitTreeSeeds;
 
             // sapling
-            if (tree.growthStage.Value < Tree.treeStage)
+            if (tree.growthStage.Value < FruitTree.treeStage)
                 return config.ClearFruitTreeSaplings;
 
             // full-grown
@@ -201,8 +194,7 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
                 // the game doesn't reliably track heavy tappers, so we need to check manually
                 || (
                     location.objects.TryGetValue(tile, out SObject obj)
-                    && obj.bigCraftable.Value
-                    && obj.ParentSheetIndex is 105 or 264
+                    && obj.IsTapper()
                 );
         }
     }

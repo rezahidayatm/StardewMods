@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
@@ -13,13 +12,16 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
         /*********
         ** Accessors
         *********/
-        /// <summary>A short field label.</summary>
+        /// <inheritdoc />
         public string Label { get; protected set; }
 
-        /// <summary>The field value.</summary>
+        /// <inheritdoc />
+        public LinkField? ExpandLink { get; protected set; }
+
+        /// <inheritdoc />
         public IFormattedText[]? Value { get; protected set; }
 
-        /// <summary>Whether the field should be displayed.</summary>
+        /// <inheritdoc />
         public bool HasValue { get; protected set; }
 
 
@@ -66,6 +68,17 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
             return null;
         }
 
+        /// <summary>Collapse the field content into an expandable link if it contains at least the given number of results.</summary>
+        /// <param name="minResultsForCollapse">The minimum results needed before the field is collapsed.</param>
+        /// <param name="countForLabel">The total number of results represented by the content (including grouped entries like "11 unrevealed items").</param>
+        public virtual void CollapseIfLengthExceeds(int minResultsForCollapse, int countForLabel)
+        {
+            if (this.Value?.Length >= minResultsForCollapse)
+            {
+                this.CollapseByDefault(I18n.Generic_ShowXResults(count: countForLabel));
+            }
+        }
+
 
         /*********
         ** Protected methods
@@ -81,8 +94,19 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
         protected IFormattedText[] FormatValue(string? value)
         {
             return !string.IsNullOrWhiteSpace(value)
-                ? new IFormattedText[] { new FormattedText(value) }
-                : Array.Empty<IFormattedText>();
+                ? [new FormattedText(value)]
+                : [];
+        }
+
+        /// <summary>Collapse the field by default, so the user needs to click a link to expand it.</summary>
+        /// <param name="linkText">The link text to show.</param>
+        protected void CollapseByDefault(string linkText)
+        {
+            this.ExpandLink = new LinkField(this.Label, linkText, () =>
+            {
+                this.ExpandLink = null;
+                return null;
+            });
         }
 
         /// <summary>Get the display value for sale price data.</summary>
@@ -112,7 +136,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
             }
 
             // prices by quality
-            List<string> priceStrings = new List<string>();
+            List<string> priceStrings = [];
             for (ItemQuality quality = ItemQuality.Normal; ; quality = quality.GetNext())
             {
                 if (saleValues.ContainsKey(quality))
@@ -126,7 +150,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Fields
                 if (quality.GetNext() == quality)
                     break;
             }
-            return string.Join(", ", priceStrings);
+            return I18n.List(priceStrings);
         }
     }
 }

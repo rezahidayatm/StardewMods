@@ -5,35 +5,29 @@ using StardewValley;
 namespace Pathoschild.Stardew.FastAnimations.Handlers
 {
     /// <summary>Handles the horse mount/dismount animation.</summary>
-    internal class MountHorseHandler : BaseAnimationHandler
+    internal sealed class MountHorseHandler : BaseAnimationHandler
     {
         /*********
         ** Public methods
         *********/
-        /// <summary>Construct an instance.</summary>
-        /// <param name="multiplier">The animation speed multiplier to apply.</param>
+        /// <inheritdoc />
         public MountHorseHandler(float multiplier)
             : base(multiplier) { }
 
-        /// <summary>Get whether the animation is currently active.</summary>
-        /// <param name="playerAnimationID">The player's current animation ID.</param>
-        public override bool IsEnabled(int playerAnimationID)
+        /// <inheritdoc />
+        public override bool TryApply(int playerAnimationId)
         {
-            return this.IsMountingOrDismounting(Game1.player);
-        }
+            Farmer player = Game1.player;
 
-        /// <summary>Perform any logic needed on update while the animation is active.</summary>
-        /// <param name="playerAnimationID">The player's current animation ID.</param>
-        public override void Update(int playerAnimationID)
-        {
-            this.ApplySkips(
-                run: () =>
+            return
+                this.IsMountingOrDismounting(player)
+                && this.ApplySkipsWhile(() =>
                 {
-                    Game1.player.update(Game1.currentGameTime, Game1.player.currentLocation);
-                    Game1.player.mount?.update(Game1.currentGameTime, Game1.player.currentLocation);
-                },
-                until: () => !this.IsMountingOrDismounting(Game1.player)
-            );
+                    player.update(Game1.currentGameTime, player.currentLocation);
+                    player.mount?.update(Game1.currentGameTime, player.currentLocation);
+
+                    return this.IsMountingOrDismounting(player);
+                });
         }
 
 
@@ -48,7 +42,7 @@ namespace Pathoschild.Stardew.FastAnimations.Handlers
                 Context.IsWorldReady
                 && (
                     player.isAnimatingMount
-                    || player.mount?.dismounting.Value == true
+                    || player.mount?.dismounting.Value is true
                 );
         }
     }

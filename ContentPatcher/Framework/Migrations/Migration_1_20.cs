@@ -1,11 +1,12 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using ContentPatcher.Framework.Conditions;
-using ContentPatcher.Framework.Constants;
 using ContentPatcher.Framework.Lexing.LexTokens;
 using ContentPatcher.Framework.Tokens;
 using Pathoschild.Stardew.Common.Utilities;
 using StardewModdingAPI;
+using StardewValley;
+using StardewValley.Extensions;
 
 namespace ContentPatcher.Framework.Migrations
 {
@@ -49,7 +50,7 @@ namespace ContentPatcher.Framework.Migrations
                 }
 
                 // default to valley
-                ILexToken[] valleyArg = new ILexToken[] { new LexTokenLiteral(LocationContext.Valley.ToString()) };
+                ILexToken[] valleyArg = [new LexTokenLiteral(LocationContexts.DefaultId)];
                 ILexToken[]? inputParts = token.InputArgs?.Parts;
                 lexToken = new LexTokenToken(
                     name: token.Name,
