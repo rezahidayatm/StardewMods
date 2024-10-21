@@ -1,0 +1,56 @@
+﻿{
+    /*********
+    ** Generic Mod Config Menu UI
+    *********/
+    // main options
+    "config.title.main-options": "Opsi Utama",
+    "config.enabled.name": "Aktif",
+    "config.enabled.desc": "Untuk mengaktifkan fitur Automate. Apabila ini di matikan, semua mesin tidak akan di automisasi dan overlay tidak akan muncul.",
+    "config.automation-interval.name": "Jarak interval automisasi",
+    "config.automation-interval.desc": "angka tick untuk setiap automisasi proses (isi 60 untuk sekali dalam sedetik, 120 untuk sekali dalam dua detik, dan seterusnya.)",
+    "config.min-minutes-for-fairy-dust.name": "Menit minimal untuk fairy dust",
+    "config.min-minutes-for-fairy-dust.desc": "Waktu minimal pemakaian fairy dust dalam bentuk menit. Contohnya, ganti settingan ini menjadi 30 menit yang berarti fairy dust tidak akan dipakai apabila mesin selesai memproses dalam 20 menit.",
+    "config.toggle-overlay-key.name": "Tombol menampilkan overlay",
+    "config.toggle-overlay-key.desc": "Tombol yang digunakan untuk mengaktifkan atau mematikan overlay automate.",
+    "config.warn-for-missing-bridge-mod.name": "Peringatan untuk kompatibilitas mod",
+    "config.warn-for-missing-bridge-mod.desc": "Berikan peringatan di awal apabila kamu menginstall mod mesin tambahan yang membutuhkan patch kompatibilitas ketika patch tersebut tidak terinstall.",
+
+    // connectors
+    "config.title.connectors": "Aktifkan konektor",
+    "config.connector.desc": "Ketika {{itemName}} terhubung ke mesin dan peti secara bersamaan.",
+    "config.custom-connectors.name": "Konektor tambahan",
+    "config.custom-connectors.desc": "Nama item tambahan (dalam bahasa inggris) yang terhubung dengan mesin terdekat. Kamu bisa menambahkan beberapa item dengan menambahkan koma.", // note: connector names must be English even when playing in other languages
+
+    // Junimo hut options
+    "config.title.junimo-huts": "Perilaku gubuk Junimo",
+    "config.junimo-hut-gems.name": "Permata",
+    "config.junimo-hut-gems.desc": "Apa yang gubuk Junimo harus lakukan dengan item batu permata. 'Deteksi-automatis' akan mengabaikannya.",
+    "config.junimo-hut-fertilizer.name": "Pupuk",
+    "config.junimo-hut-fertilizer.desc": "Apa yang gubuk Junimo harus lakukan dengan item pupuk. 'Deteksi-automatis' akan mengabaikannya apabila mod Better Junimos terinstall, apabila tidak terinstall pindahkan gubuk mereka ke peti terhubung terdekat.",
+    "config.junimo-hut-seeds.name": "Bibit",
+    "config.junimo-hut-seeds.desc": "Apa yang gubuk Junimo harus lakukan dengan item bibit. 'Deteksi-automatis' akan mengabaikannya apabila mod Better Junimos terinstall, apabila tidak terinstall pindahkan gubuk mereka ke peti terhubung terdekat.",
+
+    // Junimo hut dropdown values
+    "config.junimo-huts.auto-detect": "Deteksi automatis",
+    "config.junimo-huts.ignore": "Abaikan",
+    "config.junimo-huts.move-into-chests": "Pindahkan dari gubuk Junimo ke peti",
+    "config.junimo-huts.move-into-huts": "Pindahkan dari peti ke gubuk Junimo",
+
+    // per-machine settings
+    "config.title.machine-settings": "Pengaturan {{machineName}}",
+    "config.machine-settings-enabled.Name": "Aktifkan",
+    "config.machine-settings-enabled.desc": "Aktifkan automisasi untuk {{machineName}}",
+    "config.machine-settings-priority.name": "Prioritas",
+    "config.machine-settings-priority.desc": "Urutan prioritas dimana mesin {{machineName}} harus memproses lebih awal dari mesin lain. Mesin mempunyai prioritas awal 0, mesin yang mempunyai nilai prioritas tertinggi akan memproses lebih awal.",
+
+    // machine names
+    "config.machines.bush": "Rumput",
+    "config.machines.fruit-tree": "Pohon (Pohon Buah)",
+    "config.machines.trash-can": "Tempat Sampah",
+    "config.machines.wild-tree": "Pohon (Pohon Liar)",
+    "config.machines.feed-hopper": "Jerami Hopper dan Silo",
+
+    // special settings for individual machines
+    "config.machines.wild-tree.collect-moss.name": "Kumpulkan Lumut",
+    "config.machines.wild-tree.collect-moss.desc": "Kumpulkan lumut dari pohon. Contohnya, membiarkan lumut tetap di pohon akan meningkatkan kualitas jamur di dekat pohon jamur."
+}
